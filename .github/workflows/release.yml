@@ -77,8 +77,6 @@ jobs:
           DIR="dist/dead-sector-windows-${TAG}"
           mkdir -p "$DIR"
           cp build-windows/dead-sector.exe "$DIR/"
-          cp build-windows/SDL2.dll        "$DIR/"
-          cp build-windows/SDL2_ttf.dll    "$DIR/"
           cp -r build-windows/assets       "$DIR/"
           cd dist
           zip -r "dead-sector-windows-${TAG}.zip" "dead-sector-windows-${TAG}/"
@@ -99,7 +97,7 @@ jobs:
             | Windows (x64) | `dead-sector-windows-${{ github.ref_name }}.zip` |
             | Linux (x64) | `dead-sector-linux-${{ github.ref_name }}.zip` |
 
-            **Windows:** extract the zip, double-click `dead-sector.exe`. SDL2.dll and SDL2_ttf.dll are included.
+            **Windows:** extract the zip, double-click `dead-sector.exe`. No additional installs required.
 
             **Linux:** extract the zip, run `./dead-sector`. Requires `libsdl2-2.0-0` and `libsdl2-ttf-2.0-0` (`apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0`).
           files: |

@@ -41,8 +41,6 @@ WIN_DIR="$DIST/dead-sector-windows-$VERSION"
 rm -rf "$WIN_DIR"
 mkdir -p "$WIN_DIR"
 cp "$ROOT/build-windows/dead-sector.exe" "$WIN_DIR/"
-cp "$ROOT/build-windows/SDL2.dll"        "$WIN_DIR/"
-cp "$ROOT/build-windows/SDL2_ttf.dll"    "$WIN_DIR/"
 cp -r "$ROOT/build-windows/assets"       "$WIN_DIR/"
 echo "Windows build: $WIN_DIR"
 
