@@ -42,7 +42,8 @@ void HUD::drawLabel(const std::string& text, int x, int y, SDL_Color color) {
 }
 
 void HUD::render(int score, float tracePercent,
-                 const ProgramSystem* programs, const ModSystem* mods) {
+                 const ProgramSystem* programs, const ModSystem* mods,
+                 bool hasController) {
     SDL_Color green = { Constants::COL_HUD_R, Constants::COL_HUD_G, Constants::COL_HUD_B, 255 };
 
     // Score — top left
@@ -79,7 +80,7 @@ void HUD::render(int score, float tracePercent,
     drawTraceBar(tracePercent);
 
     // Program slots — bottom right
-    if (programs) drawProgramSlots(programs);
+    if (programs) drawProgramSlots(programs, hasController);
 }
 
 void HUD::drawTraceBar(float tracePct) {
@@ -122,7 +123,7 @@ void HUD::drawTraceBar(float tracePct) {
     SDL_RenderDrawRect(m_renderer, &bg);
 }
 
-void HUD::drawProgramSlots(const ProgramSystem* prog) {
+void HUD::drawProgramSlots(const ProgramSystem* prog, bool hasController) {
     // Three slots, bottom-right of screen
     constexpr int SLOT_W    = 90;
     constexpr int SLOT_H    = 36;
@@ -132,7 +133,10 @@ void HUD::drawProgramSlots(const ProgramSystem* prog) {
     constexpr int BASE_X    = Constants::SCREEN_W - TOTAL_W - 16;
     constexpr int BASE_Y    = Constants::SCREEN_H - SLOT_H - 14;
 
-    const char* KEYS[3] = { "[Q]", "[E]", "[R]" };
+    // Controller: X / Y / B for programs; keyboard: Q / E / R
+    const char* KEYS_KB[3]   = { "[Q]", "[E]", "[R]" };
+    const char* KEYS_CTL[3]  = { "[X]", "[Y]", "[B]" };
+    const char* const* KEYS  = hasController ? KEYS_CTL : KEYS_KB;
 
     SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
 

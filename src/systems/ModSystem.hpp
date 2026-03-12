@@ -20,16 +20,20 @@ public:
     float projRadiusMult()const;   // WIDE_BEAM × overclock
     float cdMult()        const;   // COLD_EXEC stacks (applied to cooldown, NOT overclocked)
     float traceSinkAmt()  const;   // TRACE_SINK: % per kill
-    float overclockMult() const;   // NEURAL_OVERCLOCK: 1.15 or 1.0
+    float overclockMult() const;   // NEURAL_OVERCLOCK: 1.20 or 1.0
 
     // ---- Boolean abilities ----
-    bool hasSplitRound()    const { return has(ModID::SPLIT_ROUND);      }
-    bool hasAdaptiveArmor() const { return has(ModID::ADAPTIVE_ARMOR);   }
-    bool hasPhaseFrame()    const { return has(ModID::PHASE_FRAME);      }
-    bool hasOvercharge()    const { return has(ModID::OVERCHARGE);       }
-    bool hasPhantomRound()  const { return has(ModID::PHANTOM_ROUND);    }
-    bool hasCritMatrix()    const { return has(ModID::CRIT_MATRIX);      }
-    bool hasGhostProtocol() const { return has(ModID::GHOST_PROTOCOL);   }
+    bool hasSplitRound()      const { return has(ModID::SPLIT_ROUND);      }
+    bool hasAdaptiveArmor()   const { return has(ModID::ADAPTIVE_ARMOR);   }
+    bool hasPhaseFrame()      const { return has(ModID::PHASE_FRAME);      }
+    bool hasOvercharge()      const { return has(ModID::OVERCHARGE);       }
+    bool hasNovaBurst()       const { return has(ModID::NOVA_BURST);       }
+    bool hasRicochet()        const { return has(ModID::RICOCHET);         }
+    bool hasChainFire()       const { return has(ModID::CHAIN_FIRE);       }
+    bool hasReactivePlating() const { return has(ModID::REACTIVE_PLATING); }
+    bool hasPhantomRound()    const { return has(ModID::PHANTOM_ROUND);    }
+    bool hasCritMatrix()      const { return has(ModID::CRIT_MATRIX);      }
+    bool hasGhostProtocol()   const { return has(ModID::GHOST_PROTOCOL);   }
 
     // Extra lives granted at node start (ADAPTIVE_ARMOR=1, +HULL_PLATING stacks)
     int  startingExtraLives() const;

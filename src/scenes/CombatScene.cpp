@@ -37,7 +37,7 @@ void CombatScene::onEnter(SceneContext& ctx) {
     if (ctx.mods) {
         if (m_avatar) m_avatar->extraLives = ctx.mods->startingExtraLives();
         if (ctx.mods->hasGhostProtocol())
-            m_trace.setTickRate(m_config.traceTickRate * 0.7f);
+            m_trace.setTickRate(m_config.traceTickRate * 0.6f);
     }
 }
 
@@ -48,6 +48,7 @@ void CombatScene::onExit() {
     m_spawnerICE.clear();
     m_enemyProjectiles.clear();
     m_pendingHunters.clear();
+    m_pendingProjectiles.clear();
     m_avatar.reset();
 }
 
@@ -59,17 +60,18 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             if (!ev.projectile->alive || !ev.iceEntity->alive) return;
 
             // PHANTOM_ROUND: shot always pierces (projectile stays alive)
-            // CRIT_MATRIX: 20% chance shot survives the kill
+            // CRIT_MATRIX: 30% chance shot survives the kill
             bool pierce = false;
             if (mods) {
                 if (mods->hasPhantomRound()) pierce = true;
                 else if (mods->hasCritMatrix()) {
                     static thread_local std::mt19937 rng(std::random_device{}());
                     std::uniform_real_distribution<float> d(0.f, 1.f);
-                    if (d(rng) < 0.20f) pierce = true;
+                    if (d(rng) < 0.30f) pierce = true;
                 }
             }
             if (!pierce) ev.projectile->alive = false;
+            Vec2 killPos = ev.iceEntity->pos;
             ev.iceEntity->alive = false;
             m_score += ev.iceEntity->scoreValue();
             m_iceKilled++;
@@ -79,21 +81,72 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
 
             // PHASE_FRAME: each kill briefly makes avatar invulnerable
             if (mods && mods->hasPhaseFrame() && m_avatar && m_avatar->alive) {
-                m_avatar->shieldTimer = std::max(m_avatar->shieldTimer, 0.3f);
+                m_avatar->shieldTimer = std::max(m_avatar->shieldTimer, 0.5f);
                 m_avatar->shielded    = true;
+            }
+
+            // NOVA_BURST: emit 4 radial projectiles from kill position
+            if (mods && mods->hasNovaBurst()) {
+                for (int k = 0; k < 4; ++k) {
+                    float a   = k * (6.28318f / 4.f);
+                    Vec2  dir = Vec2::fromAngle(a);
+                    Vec2  vel = dir * Constants::PROJ_SPEED;
+                    auto nova = std::make_unique<Projectile>(killPos, vel, a);
+                    m_pendingProjectiles.push_back(std::move(nova));
+                }
+            }
+
+            // CHAIN_FIRE: auto-fire at nearest surviving ICE
+            if (mods && mods->hasChainFire()) {
+                Entity* nearest = nullptr; float best = std::numeric_limits<float>::max();
+                auto checkNearest = [&](auto& vec) {
+                    for (auto& e : vec)
+                        if (e->alive) {
+                            float d = (e->pos - killPos).length();
+                            if (d < best) { best = d; nearest = e.get(); }
+                        }
+                };
+                checkNearest(m_hunters); checkNearest(m_sentries); checkNearest(m_spawnerICE);
+                if (nearest) {
+                    Vec2 diff = nearest->pos - killPos;
+                    float len = diff.length();
+                    if (len > 0.1f) diff = diff * (1.f / len);
+                    float a = std::atan2(diff.y, diff.x);
+                    auto chain = std::make_unique<Projectile>(killPos, diff * Constants::PROJ_SPEED, a);
+                    m_pendingProjectiles.push_back(std::move(chain));
+                }
             }
 
         } else if (ev.type == CollisionEvent::Type::AvatarHitICE) {
             if (!ev.avatar->alive) return;
             if (ev.avatar->shielded) { ev.iceEntity->alive = false; return; }
             if (ev.avatar->extraLives > 0) {
-                // ADAPTIVE_ARMOR: absorb the hit, brief invincibility flash
                 ev.iceEntity->alive = false;
                 ev.avatar->extraLives--;
                 ev.avatar->shieldTimer = 0.8f;
                 ev.avatar->shielded    = true;
                 m_trace.onHit();
+                // REACTIVE_PLATING: shockwave on hit
+                if (mods && mods->hasReactivePlating()) {
+                    auto shockwave = [&](auto& vec) {
+                        for (auto& e : vec)
+                            if (e->alive && (e->pos - ev.avatar->pos).length() <= 150.f) {
+                                e->alive = false; m_score += e->scoreValue(); m_iceKilled++;
+                            }
+                    };
+                    shockwave(m_hunters); shockwave(m_sentries); shockwave(m_spawnerICE);
+                }
                 return;
+            }
+            // REACTIVE_PLATING on lethal hit (fires before death)
+            if (mods && mods->hasReactivePlating() && m_avatar) {
+                auto shockwave = [&](auto& vec) {
+                    for (auto& e : vec)
+                        if (e->alive && (e->pos - ev.avatar->pos).length() <= 150.f) {
+                            e->alive = false; m_score += e->scoreValue(); m_iceKilled++;
+                        }
+                };
+                shockwave(m_hunters); shockwave(m_sentries); shockwave(m_spawnerICE);
             }
             ev.avatar->alive    = false;
             ev.iceEntity->alive = false;
@@ -109,7 +162,25 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 ev.avatar->shieldTimer = 0.8f;
                 ev.avatar->shielded    = true;
                 m_trace.onHit();
+                if (mods && mods->hasReactivePlating() && m_avatar) {
+                    auto shockwave = [&](auto& vec) {
+                        for (auto& e : vec)
+                            if (e->alive && (e->pos - ev.avatar->pos).length() <= 150.f) {
+                                e->alive = false; m_score += e->scoreValue(); m_iceKilled++;
+                            }
+                    };
+                    shockwave(m_hunters); shockwave(m_sentries); shockwave(m_spawnerICE);
+                }
                 return;
+            }
+            if (mods && mods->hasReactivePlating() && m_avatar) {
+                auto shockwave = [&](auto& vec) {
+                    for (auto& e : vec)
+                        if (e->alive && (e->pos - ev.avatar->pos).length() <= 150.f) {
+                            e->alive = false; m_score += e->scoreValue(); m_iceKilled++;
+                        }
+                };
+                shockwave(m_hunters); shockwave(m_sentries); shockwave(m_spawnerICE);
             }
             ev.enemyProj->alive = false;
             ev.avatar->alive    = false;
@@ -135,8 +206,10 @@ void CombatScene::resetGame() {
     m_spawnerICE.clear();
     m_enemyProjectiles.clear();
     m_pendingHunters.clear();
+    m_pendingProjectiles.clear();
 
     m_particles.clear();
+    m_fragments.clear();
     m_trace.reset();
     m_trace.setTickRate(m_config.traceTickRate);
     m_spawner.reset();
@@ -158,11 +231,15 @@ void CombatScene::handleEvent(SDL_Event& ev, SceneContext&) { (void)ev; }
 void CombatScene::update(float dt, SceneContext& ctx) {
     if (m_complete) return;
 
+    const bool hasRicochetMod = ctx.mods && ctx.mods->hasRicochet();
+
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
-    m_input.thrustForward = keys[SDL_SCANCODE_UP]    || keys[SDL_SCANCODE_W];
-    m_input.rotLeft       = keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_A];
-    m_input.rotRight      = keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_D];
-    m_input.fire          = keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_LCTRL];
+    m_input.thrustForward = keys[SDL_SCANCODE_UP]   || keys[SDL_SCANCODE_W];
+    m_input.rotLeft       = keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_A];
+    m_input.rotRight      = keys[SDL_SCANCODE_RIGHT]|| keys[SDL_SCANCODE_D];
+    // Keyboard: Shift = shoot
+    m_input.fire          = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT]
+                         || keys[SDL_SCANCODE_LCTRL];
     m_input.prog0         = keys[SDL_SCANCODE_Q];
     m_input.prog1         = keys[SDL_SCANCODE_E];
     m_input.prog2         = keys[SDL_SCANCODE_R];
@@ -178,16 +255,17 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         if (lx >  AXIS_DEAD || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
             m_input.rotRight = true;
 
-        // Right bumper or D-pad up = thrust button
-        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
+        // A button or D-pad up = thrust
+        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_A)
          || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_UP))
             m_input.thrustForward = true;
 
-        // Right trigger or A button fires
-        if (rt > AXIS_DEAD || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_A))
+        // Right bumper or right trigger = shoot
+        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
+         || rt > AXIS_DEAD)
             m_input.fire = true;
 
-        // Face buttons activate programs (edge detected via prev flags below)
+        // Face buttons activate programs
         if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_X)) m_input.prog0 = true;
         if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_Y)) m_input.prog1 = true;
         if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_B)) m_input.prog2 = true;
@@ -207,15 +285,17 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         if (m_input.rotRight)      m_avatar->rotateRight(dt * rotMult);
         if (m_input.thrustForward) m_avatar->applyThrust(dt, thrustMult, speedCapMult);
 
-        // Exhaust particles — emitted from both engine nubs, flickering cyan-white
+        // Exhaust particles — from engine nubs (local y=+25, perp ±3)
         if (m_input.thrustForward) {
             Vec2 heading    = Vec2::fromAngle(m_avatar->angle);
             Vec2 perp       = { -heading.y, heading.x };
-            Vec2 exhaustDir = { -heading.x, -heading.y };   // backward
-            Vec2 eR = m_avatar->pos - heading * 16.f + perp * 2.f;
-            Vec2 eL = m_avatar->pos - heading * 16.f - perp * 2.f;
-            m_particles.emitThrust(eR, exhaustDir, 80, 200, 255, 6);
-            m_particles.emitThrust(eL, exhaustDir, 80, 200, 255, 6);
+            Vec2 exhaustDir = { -heading.x, -heading.y };
+            // Engine nubs are at local {±3, +25}, i.e., behind ship at 25px
+            Vec2 eR = m_avatar->pos - heading * 25.f + perp * 3.f;
+            Vec2 eL = m_avatar->pos - heading * 25.f - perp * 3.f;
+            // 3 particles per nub, ±50° spread
+            m_particles.emitThrust(eR, exhaustDir, 80, 200, 255, 3);
+            m_particles.emitThrust(eL, exhaustDir, 80, 200, 255, 3);
         }
 
         bool rapidFire = (m_avatar->overdriveTimer > 0.f);
@@ -223,23 +303,24 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         if (fireEdge) {
             Projectile* p = m_avatar->fire(pSpeedMult, pRadMult);
             if (p) {
+                if (hasRicochetMod) { p->noWrap = true; }
                 m_projectiles.emplace_back(p);
                 m_shotCount++;
 
-                // SPLIT_ROUND: every 4th shot fires a parallel twin
-                if (splitRound && m_shotCount % 4 == 0) {
+                // SPLIT_ROUND: every 3rd shot fires a parallel twin
+                if (splitRound && m_shotCount % 3 == 0) {
                     Vec2 h    = Vec2::fromAngle(m_avatar->angle);
                     Vec2 perp = { -h.y, h.x };
                     Vec2 twinPos = m_avatar->pos + h * 18.f + perp * 10.f;
                     Vec2 twinVel = h * (Constants::PROJ_SPEED * pSpeedMult);
                     auto twin = std::make_unique<Projectile>(twinPos, twinVel, m_avatar->angle);
                     twin->radius *= pRadMult;
+                    if (hasRicochetMod) twin->noWrap = true;
                     m_projectiles.push_back(std::move(twin));
                 }
 
-                // OVERCHARGE: every 6th shot fires a 3-round angular burst
-                if (overcharge && m_shotCount % 6 == 0) {
-                    Vec2 h = Vec2::fromAngle(m_avatar->angle);
+                // OVERCHARGE: every 5th shot fires a 3-round angular burst
+                if (overcharge && m_shotCount % 5 == 0) {
                     constexpr float offsets[] = { -0.28f, 0.f, 0.28f };
                     for (float off : offsets) {
                         float a   = m_avatar->angle + off;
@@ -248,9 +329,9 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                         Vec2 bvel = dir * (Constants::PROJ_SPEED * pSpeedMult);
                         auto burst = std::make_unique<Projectile>(bpos, bvel, a);
                         burst->radius *= pRadMult;
+                        if (hasRicochetMod) burst->noWrap = true;
                         m_projectiles.push_back(std::move(burst));
                     }
-                    (void)h;
                 }
             }
         }
@@ -280,6 +361,9 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     for (auto& ep : m_enemyProjectiles) all.push_back(ep.get());
     m_physics.update(dt, all);
 
+    // RICOCHET: bounce noWrap projectiles off screen edges
+    if (hasRicochetMod) handleRicochet(true);
+
     // AI — skipped while EMP active
     if (m_empTimer <= 0.f) {
         auto aiResult = m_ai.update(dt, m_hunters, m_sentries, m_spawnerICE, m_avatar.get());
@@ -291,14 +375,21 @@ void CombatScene::update(float dt, SceneContext& ctx) {
 
     handleCollisions();
 
+    // Flush pending entities
     for (auto& h : m_pendingHunters)
         m_hunters.push_back(std::move(h));
     m_pendingHunters.clear();
 
+    for (auto& p : m_pendingProjectiles)
+        m_projectiles.push_back(std::move(p));
+    m_pendingProjectiles.clear();
+
     emitDeathParticles();
+    emitDeathFragments();
     sweepDead();
 
     m_particles.update(dt);
+    m_fragments.update(dt);
 
     if (m_stealthTimer <= 0.f) m_trace.update(dt);
 
@@ -311,6 +402,31 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     if (m_config.objective == NodeObjective::Survive) m_surviveTimer -= dt;
 
     checkObjective(ctx);
+}
+
+// ---------------------------------------------------------------------------
+// Ricochet handling
+// ---------------------------------------------------------------------------
+
+void CombatScene::handleRicochet(bool hasRicochetMod) {
+    if (!hasRicochetMod) return;
+    constexpr float W = Constants::SCREEN_WF;
+    constexpr float H = Constants::SCREEN_HF;
+    for (auto& p : m_projectiles) {
+        if (!p->alive || !p->noWrap) continue;
+        if (p->bounced) {
+            // After bounce, re-enable normal wrap so it disappears naturally
+            // (already handled by lifetime; just let it wrap off now)
+            p->noWrap = false;
+            continue;
+        }
+        bool hit = false;
+        if (p->pos.x < 0.f)  { p->vel.x = std::abs(p->vel.x);  p->pos.x = 0.f;  hit = true; }
+        if (p->pos.x > W)     { p->vel.x = -std::abs(p->vel.x); p->pos.x = W;    hit = true; }
+        if (p->pos.y < 0.f)  { p->vel.y = std::abs(p->vel.y);  p->pos.y = 0.f;  hit = true; }
+        if (p->pos.y > H)     { p->vel.y = -std::abs(p->vel.y); p->pos.y = H;    hit = true; }
+        if (hit) { p->bounced = true; p->noWrap = false; }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -358,7 +474,7 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
     }
     case ProgramID::FEEDBACK: {
         if (!m_avatar) break;
-        constexpr float R = 150.f;
+        constexpr float R = 180.f;
         auto burst = [&](auto& vec) {
             for (auto& e : vec) {
                 if (e->alive && (e->pos - m_avatar->pos).length() <= R) {
@@ -423,10 +539,10 @@ void CombatScene::render(SceneContext& ctx) {
     // Per-node grid color: tier1=blue, tier2=green, tier3=amber, tier4=red
     uint8_t gr, gg, gb;
     switch (m_config.tier) {
-        case 2:  gr=20;  gg=80;  gb=50;  break;  // green
-        case 3:  gr=80;  gg=50;  gb=20;  break;  // amber
-        case 4:  gr=80;  gg=20;  gb=50;  break;  // red/magenta
-        default: gr=20;  gg=50;  gb=80;  break;  // blue (tier 1)
+        case 2:  gr=20;  gg=80;  gb=50;  break;
+        case 3:  gr=80;  gg=50;  gb=20;  break;
+        case 4:  gr=80;  gg=20;  gb=50;  break;
+        default: gr=20;  gg=50;  gb=80;  break;
     }
     vr->drawGrid(gr, gg, gb);
 
@@ -456,15 +572,6 @@ void CombatScene::render(SceneContext& ctx) {
 
     if (m_avatar && m_avatar->alive) {
         vr->drawGlowPoly(m_avatar->worldVerts(), avatarColor);
-        if (m_avatar->thrusting) {
-            Vec2  heading = Vec2::fromAngle(m_avatar->angle);
-            Vec2  perp    = { -heading.y, heading.x };
-            float flicker = 8.f + 10.f * ((float)(SDL_GetTicks() % 120) / 120.f);
-            Vec2 eR = m_avatar->pos - heading * 14.f + perp * 3.f;
-            Vec2 eL = m_avatar->pos - heading * 14.f - perp * 3.f;
-            vr->drawGlowLine(eR, eR - heading * flicker, avatarColor);
-            vr->drawGlowLine(eL, eL - heading * flicker, avatarColor);
-        }
     }
 
     // EMP tint
@@ -474,8 +581,9 @@ void CombatScene::render(SceneContext& ctx) {
         SDL_RenderFillRect(ctx.renderer, nullptr);
     }
 
-    // Particles — drawn before CRT overlay so scanlines sit on top
+    // Particles and vector fragments — before CRT overlay
     m_particles.render(ctx.renderer);
+    m_fragments.render(ctx.renderer);
 
     vr->drawCRTOverlay();
 
@@ -483,7 +591,8 @@ void CombatScene::render(SceneContext& ctx) {
     float glitchIntensity = std::max(0.f, (m_trace.trace() - 75.f) / 25.f);
     if (glitchIntensity > 0.f) vr->drawGlitch(glitchIntensity, SDL_GetTicks());
 
-    if (ctx.hud) ctx.hud->render(m_score, m_trace.trace(), ctx.programs, ctx.mods);
+    bool hasController = (ctx.controller != nullptr);
+    if (ctx.hud) ctx.hud->render(m_score, m_trace.trace(), ctx.programs, ctx.mods, hasController);
 
     // Objective display — bottom center
     if (ctx.hud) {
@@ -529,16 +638,34 @@ void CombatScene::renderICE(SceneContext& ctx) const {
 }
 
 // ---------------------------------------------------------------------------
-// Particles
+// Death effects
 // ---------------------------------------------------------------------------
 
 void CombatScene::emitDeathParticles() {
     auto emit = [this](const auto& vec, uint8_t r, uint8_t g, uint8_t b) {
         for (const auto& e : vec)
-            if (!e->alive) m_particles.emit(e->pos, r, g, b, 12);
+            if (!e->alive) m_particles.emit(e->pos, r, g, b, 8);
     };
     emit(m_hunters,          Constants::COL_HUNTER_R,  Constants::COL_HUNTER_G,  Constants::COL_HUNTER_B);
     emit(m_sentries,         Constants::COL_SENTRY_R,  Constants::COL_SENTRY_G,  Constants::COL_SENTRY_B);
     emit(m_spawnerICE,       Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G, Constants::COL_SPAWNER_B);
     emit(m_enemyProjectiles, Constants::COL_EPROJ_R,   Constants::COL_EPROJ_G,   Constants::COL_EPROJ_B);
+}
+
+void CombatScene::emitDeathFragments() {
+    // Hunters: 6 short segments, high speed
+    for (const auto& e : m_hunters)
+        if (!e->alive)
+            m_fragments.emit(e->pos, Constants::COL_HUNTER_R, Constants::COL_HUNTER_G,
+                             Constants::COL_HUNTER_B, 6, 10.f, 320.f);
+    // Sentries: 8 medium segments (square/diamond fragments)
+    for (const auto& e : m_sentries)
+        if (!e->alive)
+            m_fragments.emit(e->pos, Constants::COL_SENTRY_R, Constants::COL_SENTRY_G,
+                             Constants::COL_SENTRY_B, 8, 14.f, 240.f);
+    // Spawners: 12 large segments, slower spread
+    for (const auto& e : m_spawnerICE)
+        if (!e->alive)
+            m_fragments.emit(e->pos, Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G,
+                             Constants::COL_SPAWNER_B, 12, 18.f, 200.f);
 }

@@ -22,6 +22,7 @@ public:
     float      angle  = 0.f;
     float      radius = 0.f;
     bool       alive  = true;
+    bool       noWrap = false; // skip edge-wrap for bouncing projectiles
     EntityType type;
 
 protected:

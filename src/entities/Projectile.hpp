@@ -8,4 +8,5 @@ public:
     void update(float dt) override;
 
     float lifetime = Constants::PROJ_LIFETIME;
+    bool  bounced  = false;  // for RICOCHET mod: only bounce once
 };

@@ -22,7 +22,7 @@ void PhysicsSystem::update(float dt, std::vector<Entity*> entities) {
     for (Entity* e : entities) {
         if (!e || !e->alive) continue;
         integrate(*e, dt);
-        wrapEdges(*e);
+        if (!e->noWrap) wrapEdges(*e);
         e->update(dt);
         // transformVerts is called via the public method exposed on Entity
         // We call it through the protected helper by having Entity::update

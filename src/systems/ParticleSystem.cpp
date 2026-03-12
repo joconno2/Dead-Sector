@@ -27,9 +27,9 @@ void ParticleSystem::emit(Vec2 pos, uint8_t r, uint8_t g, uint8_t b, int count) 
 
 void ParticleSystem::emitThrust(Vec2 pos, Vec2 dir, uint8_t r, uint8_t g, uint8_t b, int count) {
     // dir must be normalised by caller; wider spread, higher speed, longer life
-    std::uniform_real_distribution<float> spreadDist(-1.48f, 1.48f); // ±85°
-    std::uniform_real_distribution<float> speedDist(150.f, 420.f);
-    std::uniform_real_distribution<float> lifeDist(0.18f, 0.52f);
+    std::uniform_real_distribution<float> spreadDist(-0.87f, 0.87f); // ±50°
+    std::uniform_real_distribution<float> speedDist(100.f, 280.f);
+    std::uniform_real_distribution<float> lifeDist(0.15f, 0.38f);
 
     for (int i = 0; i < count && (int)m_pool.size() < MAX; ++i) {
         float a    = spreadDist(m_rng);

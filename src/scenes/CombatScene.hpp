@@ -9,12 +9,14 @@
 #include "systems/AISystem.hpp"
 #include "systems/ProgramSystem.hpp"
 #include "systems/ParticleSystem.hpp"
+#include "systems/FragmentSystem.hpp"
 #include "entities/Avatar.hpp"
 #include "entities/Projectile.hpp"
 #include "entities/HunterICE.hpp"
 #include "entities/SentryICE.hpp"
 #include "entities/SpawnerICE.hpp"
 #include "entities/EnemyProjectile.hpp"
+#include "math/Vec2.hpp"
 #include <memory>
 #include <vector>
 
@@ -26,7 +28,6 @@ struct NodeConfig {
     int           sweepTarget    = 6;
     float         surviveSeconds = 30.f;
     float         traceTickRate  = 3.0f;   // %/sec
-
 };
 
 class CombatScene : public IScene {
@@ -49,6 +50,7 @@ private:
     AISystem        m_ai;
 
     ParticleSystem  m_particles;
+    FragmentSystem  m_fragments;
 
     std::unique_ptr<Avatar>                       m_avatar;
     std::vector<std::unique_ptr<Projectile>>      m_projectiles;
@@ -58,14 +60,15 @@ private:
     std::vector<std::unique_ptr<EnemyProjectile>> m_enemyProjectiles;
 
     // Staging buffers — flushed after update to avoid iterator invalidation
-    std::vector<std::unique_ptr<HunterICE>>       m_pendingHunters;
+    std::vector<std::unique_ptr<HunterICE>>  m_pendingHunters;
+    std::vector<std::unique_ptr<Projectile>> m_pendingProjectiles; // NOVA_BURST / CHAIN_FIRE
 
     int   m_score        = 0;
     int   m_iceKilled    = 0;   // for Sweep/Boss objective
     float m_surviveTimer = 0.f; // for Survive objective (counts down)
     bool  m_complete     = false;
     bool  m_firePrev     = false;
-    int   m_shotCount    = 0;   // for SPLIT_ROUND mod
+    int   m_shotCount    = 0;   // for SPLIT_ROUND / OVERCHARGE mod
 
     // Active program effect timers
     float m_empTimer     = 0.f;
@@ -86,8 +89,10 @@ private:
     void resetGame();
     void handleCollisions();
     void emitDeathParticles();
+    void emitDeathFragments();
     void sweepDead();
     void activateProgram(int slot, SceneContext& ctx);
     void checkObjective(SceneContext& ctx);
     void renderICE(SceneContext& ctx) const;
+    void handleRicochet(bool hasRicochet);
 };

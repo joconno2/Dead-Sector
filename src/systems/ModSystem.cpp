@@ -28,35 +28,35 @@ void ModSystem::reset() {
 // ---------------------------------------------------------------------------
 
 float ModSystem::overclockMult() const {
-    return has(ModID::NEURAL_OVERCLOCK) ? 1.15f : 1.f;
+    return has(ModID::NEURAL_OVERCLOCK) ? 1.20f : 1.f;
 }
 
 float ModSystem::thrustMult() const {
     float v = 1.f;
-    for (int i = 0; i < count(ModID::KINETIC_CORE); ++i) v *= 1.3f;
+    for (int i = 0; i < count(ModID::KINETIC_CORE); ++i) v *= 1.4f;
     return v * overclockMult();
 }
 
 float ModSystem::rotMult() const {
     float v = 1.f;
-    for (int i = 0; i < count(ModID::GYRO_STAB); ++i) v *= 1.35f;
+    for (int i = 0; i < count(ModID::GYRO_STAB); ++i) v *= 1.4f;
     return v * overclockMult();
 }
 
 float ModSystem::maxSpeedMult() const {
     float v = 1.f;
-    for (int i = 0; i < count(ModID::INERTIA_DAMP); ++i) v *= 1.2f;
+    for (int i = 0; i < count(ModID::INERTIA_DAMP); ++i) v *= 1.25f;
     return v * overclockMult();
 }
 
 float ModSystem::projSpeedMult() const {
     float v = 1.f;
-    for (int i = 0; i < count(ModID::HOT_BARREL); ++i) v *= 1.25f;
+    for (int i = 0; i < count(ModID::HOT_BARREL); ++i) v *= 1.30f;
     return v * overclockMult();
 }
 
 float ModSystem::projRadiusMult() const {
-    float v = has(ModID::WIDE_BEAM) ? 1.7f : 1.f;
+    float v = has(ModID::WIDE_BEAM) ? 2.0f : 1.f;
     return v * overclockMult();
 }
 
@@ -68,7 +68,7 @@ float ModSystem::cdMult() const {
 }
 
 float ModSystem::traceSinkAmt() const {
-    return count(ModID::TRACE_SINK) * 4.f;
+    return count(ModID::TRACE_SINK) * 6.f;
 }
 
 int ModSystem::startingExtraLives() const {
