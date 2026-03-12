@@ -61,15 +61,19 @@ void AISystem::updateSentry(float dt, SentryICE& s, const Avatar& av, Result& ou
     float step = Constants::SENTRY_ROT_SPEED * dt;
     s.angle += (std::abs(diff) < step) ? diff : std::copysign(step, diff);
 
-    // Fire cooldown
+    // Fire cooldown — 3-way burst spread
     s.fireCooldown -= dt;
     if (s.fireCooldown <= 0.f) {
         s.fireCooldown = Constants::SENTRY_FIRE_RATE;
 
-        Vec2 heading  = Vec2::fromAngle(s.angle);
-        Vec2 projPos  = s.pos + heading * (s.radius + 5.f);
-        Vec2 projVel  = heading * Constants::SENTRY_PROJ_SPEED;
-        out.firedProjectiles.push_back(std::make_unique<EnemyProjectile>(projPos, projVel));
+        constexpr float SPREAD = 0.30f; // ~17 degrees per side
+        for (int k = -1; k <= 1; ++k) {
+            float a       = s.angle + k * SPREAD;
+            Vec2  heading = Vec2::fromAngle(a);
+            Vec2  projPos = s.pos + heading * (s.radius + 5.f);
+            Vec2  projVel = heading * Constants::SENTRY_PROJ_SPEED;
+            out.firedProjectiles.push_back(std::make_unique<EnemyProjectile>(projPos, projVel));
+        }
     }
 }
 

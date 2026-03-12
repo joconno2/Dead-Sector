@@ -38,9 +38,10 @@ public:
     // Extra lives granted at node start (ADAPTIVE_ARMOR=1, +HULL_PLATING stacks)
     int  startingExtraLives() const;
 
-    // Passive slot tracking (max 3)
+    // Passive slot tracking (default cap 3, raised by shop EXTRA_PASSIVE)
     int  passiveCount() const;
-    bool passiveFull()  const { return passiveCount() >= 3; }
+    bool passiveFull()  const { return passiveCount() >= m_passiveCap; }
+    void setPassiveCap(int cap) { m_passiveCap = cap; }
 
     // Build a weighted-random offer pool of N mods (respects rarity weights,
     // excludes Passive mods when passive slots are full,
@@ -49,4 +50,5 @@ public:
 
 private:
     std::vector<ModID> m_mods;
+    int                m_passiveCap = 3;
 };

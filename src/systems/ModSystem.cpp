@@ -21,6 +21,7 @@ int ModSystem::count(ModID id) const {
 
 void ModSystem::reset() {
     m_mods.clear();
+    m_passiveCap = 3;
 }
 
 // ---------------------------------------------------------------------------

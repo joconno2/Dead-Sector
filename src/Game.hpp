@@ -3,6 +3,8 @@
 #include <memory>
 #include "scenes/SceneContext.hpp"
 #include "scenes/SceneManager.hpp"
+#include "core/SaveSystem.hpp"
+#include "debug/DebugOverlay.hpp"
 
 class VectorRenderer;
 class HUD;
@@ -31,6 +33,8 @@ private:
     std::unique_ptr<ModSystem>      m_mods;
     std::unique_ptr<ProgramSystem>  m_programs;
 
+    SaveData     m_saveData;
     SceneContext m_ctx;
     bool         m_running = false;
+    DebugOverlay m_debug;
 };

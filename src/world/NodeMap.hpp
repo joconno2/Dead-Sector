@@ -11,7 +11,8 @@ public:
     Node&       node(int id)        { return m_nodes[id]; }
 
     void clearNode(int id);
-    void reset();   // rebuild map for a new run
+    void reset();       // rebuild map for a new run
+    void revealAll();   // unlock all Locked nodes (REVEAL_MAP shop upgrade)
 
     int startNode() const { return 0; }
 

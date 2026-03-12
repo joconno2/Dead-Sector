@@ -15,6 +15,7 @@ struct Node {
     int            gridRow;
     int            sweepTarget;   // ICE kills required (Sweep / Boss)
     float          surviveSeconds;// seconds to outlast (Survive)
-    NodeStatus     status = NodeStatus::Locked;
+    NodeStatus     status   = NodeStatus::Locked;
     std::vector<int> connections; // adjacent node IDs (bidirectional)
+    bool           revealed = false; // SHADOW SCANNER: show on map but still locked
 };

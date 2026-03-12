@@ -1,11 +1,24 @@
 #pragma once
 #include "Entity.hpp"
+#include <vector>
+#include <string>
 
 class Projectile;
 
+enum class HullType { Delta, Raptor, Mantis, Blade, Battle };
+
+// Resolve hull type from a save-data string ID
+inline HullType hullFromString(const std::string& s) {
+    if (s == "RAPTOR")  return HullType::Raptor;
+    if (s == "MANTIS")  return HullType::Mantis;
+    if (s == "BLADE")   return HullType::Blade;
+    if (s == "BATTLE")  return HullType::Battle;
+    return HullType::Delta;
+}
+
 class Avatar : public Entity {
 public:
-    Avatar(float startX, float startY);
+    Avatar(float startX, float startY, HullType hull = HullType::Delta);
 
     void update(float dt) override;
 
@@ -16,14 +29,14 @@ public:
     // Returns a heap-allocated Projectile with optional speed/radius multipliers.
     Projectile* fire(float speedMult = 1.f, float radiusMult = 1.f);
 
-    bool  thrusting     = false;  // for thruster flame render
-    float thrusterTimer = 0.f;    // flicker timer
+    bool  thrusting     = false;
+    float thrusterTimer = 0.f;
 
     // Program effects
     bool  shielded       = false;
-    float shieldTimer    = 0.f;   // remaining invincibility seconds
-    float overdriveTimer = 0.f;   // remaining overdrive seconds
+    float shieldTimer    = 0.f;
+    float overdriveTimer = 0.f;
 
     // Mod effects
-    int   extraLives     = 0;     // ADAPTIVE_ARMOR: absorbs 1 fatal hit per charge
+    int   extraLives     = 0;
 };

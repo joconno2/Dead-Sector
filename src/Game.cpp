@@ -1,8 +1,9 @@
 #include "Game.hpp"
 #include "core/Constants.hpp"
+#include "core/SaveSystem.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
-#include "scenes/MapScene.hpp"
+#include "scenes/MainMenuScene.hpp"
 #include "world/NodeMap.hpp"
 #include "systems/ModSystem.hpp"
 #include "systems/ProgramSystem.hpp"
@@ -77,7 +78,11 @@ bool Game::init() {
     }
     m_ctx.controller = m_controller;
 
-    m_scenes->start(std::make_unique<MapScene>(*m_nodeMap), m_ctx);
+    // Load persistent save data
+    m_saveData       = SaveSystem::load();
+    m_ctx.saveData   = &m_saveData;
+
+    m_scenes->start(std::make_unique<MainMenuScene>(), m_ctx);
     return true;
 }
 
@@ -134,15 +139,23 @@ void Game::run() {
                 std::cout << "Controller disconnected.\n";
             }
 
-            m_scenes->handleEvent(ev, m_ctx);
+            m_debug.handleEvent(ev, m_ctx);
+            if (!m_debug.isOpen())
+                m_scenes->handleEvent(ev, m_ctx);
         }
 
         accumulator += elapsed;
         while (accumulator >= FIXED_TICKS) {
-            m_scenes->update(FIXED_DT, m_ctx);
+            m_debug.update(FIXED_DT, m_ctx);
+            if (!m_debug.isOpen())
+                m_scenes->update(FIXED_DT, m_ctx);
             accumulator -= FIXED_TICKS;
         }
 
         m_scenes->render(m_ctx);
+        if (m_debug.isOpen()) {
+            m_debug.render(m_renderer, m_hud->font());
+            SDL_RenderPresent(m_renderer);
+        }
     }
 }

@@ -14,7 +14,9 @@ struct UpgradeCard {
 
 class NodeCompleteScene : public IScene {
 public:
-    NodeCompleteScene(int nodeId, int score, int iceKilled, int sweepTarget);
+    // endless=true means nodeId==-1, return to a new CombatScene after upgrade pick
+    NodeCompleteScene(int nodeId, int score, int iceKilled, int sweepTarget,
+                      bool endless = false, int endlessWave = 0);
 
     void onEnter(SceneContext& ctx) override;
     void onExit()                   override;
@@ -29,11 +31,14 @@ private:
     int   m_score;
     int   m_iceKilled;
     int   m_sweepTarget;
+    bool  m_endless     = false;
+    int   m_endlessWave = 0;
     float m_timer   = 0.f;
     bool  m_cleared = false;
 
     Phase                    m_phase      = Phase::Result;
     std::vector<UpgradeCard> m_offered;
+    int                      m_cardCount = 3;   // EXTRA_OFFER raises this
     int                      m_cursor    = 0;
     float                    m_pulse     = 0.f;
 

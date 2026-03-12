@@ -5,7 +5,7 @@
 enum class EntityType {
     Avatar, Projectile, DataConstruct,
     EnemyProjectile,
-    HunterICE, SentryICE, SpawnerICE
+    HunterICE, SentryICE, SpawnerICE, PulseMine
 };
 
 class Entity {

@@ -1,5 +1,6 @@
 #include "NodeCompleteScene.hpp"
 #include "MapScene.hpp"
+#include "CombatScene.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
 #include "world/NodeMap.hpp"
@@ -28,8 +29,50 @@ static constexpr int CARD_X0   = (Constants::SCREEN_W - CARD_TOT) / 2;
 static constexpr int CARD_Y0   = (Constants::SCREEN_H - CARD_H) / 2 + 20;
 
 // ---------------------------------------------------------------------------
-NodeCompleteScene::NodeCompleteScene(int nodeId, int score, int iceKilled, int sweepTarget)
+// Bonus pool for thematic credit bonuses
+// ---------------------------------------------------------------------------
+struct BonusDef { const char* name; int minAmt; int maxAmt; };
+static const BonusDef BONUS_POOL[] = {
+    {"CREDIT CARD DUMP",       500,  2500},
+    {"BANK TRANSFER SKIM",     800,  3500},
+    {"CRYPTO WALLET DRAIN",    300,  8000},
+    {"CORPORATE PAYROLL",     2000, 12000},
+    {"DARK WEB SALE",          400,  2000},
+    {"BIOMETRIC BYPASS FEE",   600,  3000},
+    {"ZERO-DAY EXPLOIT",      1000,  5000},
+    {"ICE BOUNTY",             200,   900},
+    {"TRACE EVASION FEE",      300,  1500},
+    {"SWISS ACCOUNT SKIM",     900,  4000},
+    {"GHOST PROTOCOL PAYOUT",  500,  2500},
+    {"NEURAL LACE EXPORT",     700,  3500},
+    {"PROPRIETARY KEYS SOLD", 1200,  6000},
+    {"RANSOMWARE COLLECT",    1500,  7000},
+    {"SATELLITE UPLINK SOLD",  800,  3000},
+};
+static constexpr int BONUS_POOL_SIZE = (int)(sizeof(BONUS_POOL) / sizeof(BONUS_POOL[0]));
+
+static void generateBonuses(SceneContext& ctx, std::mt19937& rng) {
+    // Generate 2-3 bonuses
+    std::uniform_int_distribution<int> countDist(2, 3);
+    int count = countDist(rng);
+
+    std::uniform_int_distribution<int> idxDist(0, BONUS_POOL_SIZE - 1);
+    for (int i = 0; i < count; ++i) {
+        int idx = idxDist(rng);
+        const BonusDef& bd = BONUS_POOL[idx];
+        std::uniform_int_distribution<int> amtDist(bd.minAmt, bd.maxAmt);
+        int amt = amtDist(rng);
+
+        ctx.runCredits += amt;
+        ctx.runBonuses.push_back({ std::string(bd.name), amt });
+    }
+}
+
+// ---------------------------------------------------------------------------
+NodeCompleteScene::NodeCompleteScene(int nodeId, int score, int iceKilled, int sweepTarget,
+                                     bool endless, int endlessWave)
     : m_nodeId(nodeId), m_score(score), m_iceKilled(iceKilled), m_sweepTarget(sweepTarget)
+    , m_endless(endless), m_endlessWave(endlessWave)
 {}
 
 void NodeCompleteScene::onEnter(SceneContext& ctx) {
@@ -38,7 +81,17 @@ void NodeCompleteScene::onEnter(SceneContext& ctx) {
     m_phase  = Phase::Result;
     m_cursor = 0;
     m_offered.clear();
-    if (ctx.nodeMap && !m_cleared) { ctx.nodeMap->clearNode(m_nodeId); m_cleared = true; }
+
+    if (!m_cleared) {
+        // Clear node on map (not for endless — nodeId==-1)
+        if (!m_endless && ctx.nodeMap) {
+            ctx.nodeMap->clearNode(m_nodeId);
+        }
+        // Generate thematic credit bonuses once
+        std::mt19937 rng(std::random_device{}());
+        generateBonuses(ctx, rng);
+        m_cleared = true;
+    }
 }
 
 void NodeCompleteScene::onExit() {}
@@ -66,6 +119,12 @@ static int modRarityWeight(ModRarity r) {
 }
 
 void NodeCompleteScene::buildOfferPool(SceneContext& ctx) {
+    // EXTRA_OFFER shop upgrade: +1 card per stack (max 5 total)
+    m_cardCount = CARDS;
+    if (ctx.saveData) {
+        m_cardCount = std::min(CARDS + ctx.saveData->purchaseCount("EXTRA_OFFER"), 5);
+    }
+
     struct Candidate { UpgradeCard card; int weight; };
     std::vector<Candidate> pool;
 
@@ -106,9 +165,9 @@ void NodeCompleteScene::buildOfferPool(SceneContext& ctx) {
 
     std::mt19937 rng(std::random_device{}());
     m_offered.clear();
-    m_offered.reserve(CARDS);
+    m_offered.reserve(m_cardCount);
 
-    while ((int)m_offered.size() < CARDS && !pool.empty()) {
+    while ((int)m_offered.size() < m_cardCount && !pool.empty()) {
         int totalW = 0;
         for (auto& c : pool) totalW += c.weight;
         std::uniform_int_distribution<int> dist(0, totalW - 1);
@@ -170,8 +229,21 @@ void NodeCompleteScene::pickUpgrade(SceneContext& ctx) {
 }
 
 void NodeCompleteScene::returnToMap(SceneContext& ctx) {
-    if (ctx.nodeMap) ctx.scenes->replace(std::make_unique<MapScene>(*ctx.nodeMap));
-    else             *ctx.running = false;
+    if (m_endless) {
+        // Return to a new endless CombatScene with incremented tier/wave
+        NodeConfig cfg;
+        cfg.nodeId        = -1;
+        cfg.tier          = std::min(4, 1 + ctx.endlessWave / 5);
+        cfg.objective     = NodeObjective::Sweep;
+        cfg.sweepTarget   = 999999;
+        cfg.traceTickRate = 0.17f;
+        cfg.endless       = true;
+        cfg.endlessWave   = ctx.endlessWave;
+        ctx.scenes->replace(std::make_unique<CombatScene>(cfg));
+    } else {
+        if (ctx.nodeMap) ctx.scenes->replace(std::make_unique<MapScene>(*ctx.nodeMap));
+        else             *ctx.running = false;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -285,8 +357,12 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
     bool selected    = (idx == m_cursor);
     float pulse      = 0.5f + 0.5f * std::sin(m_pulse);
 
-    int cx = CARD_X0 + idx * (CARD_W + CARD_PAD);
-    int cy = CARD_Y0;
+    // Compute x0 dynamically so extra cards (EXTRA_OFFER) stay centred
+    int n   = (int)m_offered.size();
+    int tot = n * CARD_W + (n - 1) * CARD_PAD;
+    int x0  = (Constants::SCREEN_W - tot) / 2;
+    int cx  = x0 + idx * (CARD_W + CARD_PAD);
+    int cy  = CARD_Y0;
 
     const UpgradeCard& card = m_offered[idx];
     uint8_t rr, rg, rb, ar, ag, ab;

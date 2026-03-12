@@ -19,22 +19,27 @@ void NodeMap::buildDungeon() {
 
     // fields: id, name, objective, tier, col, row, sweepTarget, surviveSeconds, status, connections
     m_nodes = {
-        { 0, "SYS-ENTRY",   NodeObjective::Sweep,   1, 1, 0,  6,  0.f, NodeStatus::Available, {2}      },
-        { 1, "ARCHIVE-A",   NodeObjective::Survive,  1, 0, 1,  0, 30.f, NodeStatus::Locked,   {4}      },
-        { 2, "DATASTORE",   NodeObjective::Sweep,    1, 1, 1,  8,  0.f, NodeStatus::Locked,   {1,3,5}  },
-        { 3, "VAULT-7",     NodeObjective::Survive,  1, 2, 1,  0, 35.f, NodeStatus::Locked,   {6}      },
-        { 4, "SECURITY",    NodeObjective::Sweep,    2, 0, 2, 12,  0.f, NodeStatus::Locked,   {7}      },
-        { 5, "HUB-BETA",    NodeObjective::Sweep,    2, 1, 2, 10,  0.f, NodeStatus::Locked,   {7,8}    },
-        { 6, "ICE-NEST",    NodeObjective::Sweep,    2, 2, 2, 15,  0.f, NodeStatus::Locked,   {8}      },
-        { 7, "FIREWALL",    NodeObjective::Survive,  3, 0, 3,  0, 50.f, NodeStatus::Locked,   {8}      },
-        { 8, "CORE-ACCESS", NodeObjective::Sweep,    3, 1, 3, 20,  0.f, NodeStatus::Locked,   {9}      },
-        { 9, "MAINFRAME",   NodeObjective::Boss,     4, 1, 4, 30,  0.f, NodeStatus::Locked,   {}       },
+        { 0, "SYS-ENTRY",   NodeObjective::Sweep,   1, 1, 0,  6,  0.f, NodeStatus::Available, {2}        },
+        { 1, "ARCHIVE-A",   NodeObjective::Survive,  1, 0, 1,  0, 30.f, NodeStatus::Locked,   {2,4}      },
+        { 2, "DATASTORE",   NodeObjective::Sweep,    1, 1, 1,  8,  0.f, NodeStatus::Locked,   {0,1,3,5}  },
+        { 3, "VAULT-7",     NodeObjective::Survive,  1, 2, 1,  0, 35.f, NodeStatus::Locked,   {2,6}      },
+        { 4, "SECURITY",    NodeObjective::Sweep,    2, 0, 2, 12,  0.f, NodeStatus::Locked,   {1,7}      },
+        { 5, "HUB-BETA",    NodeObjective::Sweep,    2, 1, 2, 10,  0.f, NodeStatus::Locked,   {2,7,8}    },
+        { 6, "ICE-NEST",    NodeObjective::Sweep,    2, 2, 2, 15,  0.f, NodeStatus::Locked,   {3,8}      },
+        { 7, "FIREWALL",    NodeObjective::Survive,  3, 0, 3,  0, 50.f, NodeStatus::Locked,   {4,5,8}    },
+        { 8, "CORE-ACCESS", NodeObjective::Sweep,    3, 1, 3, 20,  0.f, NodeStatus::Locked,   {5,6,7,9}  },
+        { 9, "MAINFRAME",   NodeObjective::Boss,     4, 1, 4, 30,  0.f, NodeStatus::Locked,   {8}        },
     };
 }
 
 void NodeMap::reset() {
     m_nodes.clear();
     buildDungeon();
+}
+
+void NodeMap::revealAll() {
+    for (auto& n : m_nodes)
+        n.revealed = true;
 }
 
 void NodeMap::clearNode(int id) {

@@ -9,6 +9,7 @@ public:
     ~HUD();
 
     bool isReady() const { return m_font != nullptr; }
+    TTF_Font* font() const { return m_font; }
 
     void render(int score, float tracePercent,
                 const class ProgramSystem* programs = nullptr,
@@ -17,6 +18,9 @@ public:
 
     // Public text rendering for use by other scenes
     void drawLabel(const std::string& text, int x, int y, SDL_Color color);
+
+    // Boss health bar — call from CombatScene render when boss is active
+    void drawBossBar(const char* name, int hp, int maxHp);
 
 private:
     SDL_Renderer* m_renderer;

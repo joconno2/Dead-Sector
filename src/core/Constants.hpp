@@ -80,7 +80,7 @@ namespace Constants {
     // SentryICE
     constexpr float SENTRY_RADIUS    = 18.f;
     constexpr float SENTRY_ROT_SPEED = 1.8f;
-    constexpr float SENTRY_FIRE_RATE = 2.8f;
+    constexpr float SENTRY_FIRE_RATE = 3.8f;  // 3-way burst, so longer interval
     constexpr float SENTRY_PROJ_SPEED = 220.f;
     constexpr int   SCORE_SENTRY     = 150;
 

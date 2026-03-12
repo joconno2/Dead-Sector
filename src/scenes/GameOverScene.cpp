@@ -3,9 +3,10 @@
 #include "systems/ModSystem.hpp"
 #include "systems/ProgramSystem.hpp"
 #include "SceneManager.hpp"
-#include "MapScene.hpp"
+#include "RunSummaryScene.hpp"
 #include "world/NodeMap.hpp"
 #include "core/Constants.hpp"
+#include "core/SaveSystem.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
 #include "math/Vec2.hpp"
@@ -18,27 +19,26 @@ void GameOverScene::onEnter(SceneContext&) {
 
 void GameOverScene::onExit() {}
 
-static void returnToMap(SceneContext& ctx) {
-    // Full run reset — wipe all persistent state
-    if (ctx.mods)     ctx.mods->reset();
-    if (ctx.programs) ctx.programs->reset();
-    if (ctx.nodeMap)  ctx.nodeMap->reset();
+static void goToSummary(SceneContext& ctx, int score) {
+    // Add score to this run's credits
+    ctx.runCredits += score;
 
-    if (ctx.nodeMap)
-        ctx.scenes->replace(std::make_unique<MapScene>(*ctx.nodeMap));
-    else
-        *ctx.running = false;
+    int iceKilled    = ctx.runKills;
+    int nodesCleared = ctx.runNodes;
+
+    ctx.scenes->replace(std::make_unique<RunSummaryScene>(
+        score, iceKilled, nodesCleared, false /*defeat*/));
 }
 
 void GameOverScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
-    if (m_time < 1.5f) return; // brief lockout so accidental button press doesn't skip it
+    if (m_time < 1.5f) return; // brief lockout
 
     if (ev.type == SDL_KEYDOWN) {
-        returnToMap(ctx);
+        goToSummary(ctx, m_score);
     } else if (ev.type == SDL_CONTROLLERBUTTONDOWN) {
         if (ev.cbutton.button == SDL_CONTROLLER_BUTTON_A
          || ev.cbutton.button == SDL_CONTROLLER_BUTTON_START) {
-            returnToMap(ctx);
+            goToSummary(ctx, m_score);
         }
     }
 }
@@ -64,6 +64,14 @@ void GameOverScene::render(SceneContext& ctx) {
 
     if (ctx.hud) {
         ctx.hud->render(m_score, 0.f);
+
+        if (m_time > 1.5f) {
+            SDL_Color promptCol = { 220, 80, 60, 200 };
+            ctx.hud->drawLabel(">> PRESS ANY KEY <<",
+                               Constants::SCREEN_W / 2 - 100,
+                               Constants::SCREEN_H / 2 + 40,
+                               promptCol);
+        }
     }
 
     SDL_RenderPresent(ctx.renderer);

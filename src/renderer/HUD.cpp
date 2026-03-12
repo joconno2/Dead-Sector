@@ -183,3 +183,58 @@ void HUD::drawProgramSlots(const ProgramSystem* prog, bool hasController) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Boss health bar — centred at top of screen, below score
+// ---------------------------------------------------------------------------
+void HUD::drawBossBar(const char* name, int hp, int maxHp) {
+    if (!m_renderer || maxHp <= 0) return;
+
+    static constexpr int BAR_W   = 360;
+    static constexpr int BAR_H   = 14;
+    static constexpr int SEGS    = 12;
+    const int cx   = Constants::SCREEN_W / 2;
+    const int barX = cx - BAR_W / 2;
+    const int barY = 48;  // below score/trace area
+
+    // Label: "// BOSS: NAME //"
+    std::string label = std::string("// ") + name + " //";
+    int lx = cx - (int)(label.size() * 6);  // approx center
+    drawText(label, lx, barY - 18, {220, 60, 60, 230});
+
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+
+    // Background track
+    SDL_SetRenderDrawColor(m_renderer, 30, 10, 10, 200);
+    SDL_Rect bg = {barX - 1, barY - 1, BAR_W + 2, BAR_H + 2};
+    SDL_RenderFillRect(m_renderer, &bg);
+
+    // Fill — bright red, segments
+    float frac = std::max(0.f, (float)hp / maxHp);
+    int fillW   = (int)(BAR_W * frac);
+    if (fillW > 0) {
+        // Outer glow
+        SDL_SetRenderDrawColor(m_renderer, 200, 20, 20, 60);
+        SDL_Rect glow = {barX - 3, barY - 3, BAR_W + 6, BAR_H + 6};
+        SDL_RenderFillRect(m_renderer, &glow);
+        // Fill
+        SDL_SetRenderDrawColor(m_renderer, 220, 40, 40, 220);
+        SDL_Rect fill = {barX, barY, fillW, BAR_H};
+        SDL_RenderFillRect(m_renderer, &fill);
+        // Bright core line
+        SDL_SetRenderDrawColor(m_renderer, 255, 120, 100, 200);
+        SDL_RenderDrawLine(m_renderer, barX, barY + 2, barX + fillW, barY + 2);
+    }
+
+    // Segment dividers
+    SDL_SetRenderDrawColor(m_renderer, 10, 5, 5, 180);
+    for (int i = 1; i < SEGS; ++i) {
+        int sx = barX + BAR_W * i / SEGS;
+        SDL_RenderDrawLine(m_renderer, sx, barY, sx, barY + BAR_H);
+    }
+
+    // Border
+    SDL_SetRenderDrawColor(m_renderer, 180, 40, 40, 200);
+    SDL_Rect border = {barX, barY, BAR_W, BAR_H};
+    SDL_RenderDrawRect(m_renderer, &border);
+}

@@ -178,15 +178,18 @@ void MapScene::render(SceneContext& ctx) {
                            Constants::SCREEN_W/2 - 100, 18, {0,220,180,255});
 
         const Node& sel = m_nodeMap.node(m_cursor);
-        std::string nodeInfo = sel.name + "  ";
-        if      (sel.objective == NodeObjective::Sweep)   nodeInfo += "[SWEEP]";
+        bool selKnown = (sel.status != NodeStatus::Locked || sel.revealed);
+        std::string nodeInfo = selKnown ? sel.name + "  " : "???  ";
+        if (!selKnown)                                     nodeInfo += "[UNKNOWN]";
+        else if (sel.objective == NodeObjective::Sweep)    nodeInfo += "[SWEEP]";
         else if (sel.objective == NodeObjective::Survive)  nodeInfo += "[SURVIVE]";
         else if (sel.objective == NodeObjective::Boss)     nodeInfo += "[BOSS]";
 
         std::string statusStr;
-        if      (sel.status == NodeStatus::Cleared)   statusStr = "CLEARED";
-        else if (sel.status == NodeStatus::Available)  statusStr = "AVAILABLE  --  ENTER to jack in";
-        else                                           statusStr = "LOCKED";
+        if      (sel.status == NodeStatus::Cleared)        statusStr = "CLEARED";
+        else if (sel.status == NodeStatus::Available)      statusStr = "AVAILABLE  --  ENTER to jack in";
+        else if (sel.revealed)                             statusStr = "LOCKED  --  clear an adjacent node to access";
+        else                                               statusStr = "LOCKED";
 
         ctx.hud->drawLabel(nodeInfo,   Constants::SCREEN_W/2 - 180, Constants::SCREEN_H - 56, {100,200,160,200});
         ctx.hud->drawLabel(statusStr,  Constants::SCREEN_W/2 - 180, Constants::SCREEN_H - 34, {60,140,110,200});
@@ -281,8 +284,14 @@ void MapScene::drawRoom(SDL_Renderer* r, const Node& n, bool selected, float pul
     uint8_t br = 0, bg = 0, bb = 0; // border
     switch (n.status) {
         case NodeStatus::Locked:
-            fr=8;  fg=8;  fb=15; fa=180;
-            br=35; bg=35; bb=55;
+            if (n.revealed) {
+                // Shadow Scanner: slightly brighter, teal-tinted — visible but not enterable
+                fr=10; fg=30; fb=40; fa=185;
+                br=40; bg=90; bb=110;
+            } else {
+                fr=8;  fg=8;  fb=15; fa=180;
+                br=35; bg=35; bb=55;
+            }
             break;
         case NodeStatus::Available:
             fr=5;  fg=55; fb=70; fa=200;
@@ -317,15 +326,18 @@ void MapScene::drawRoom(SDL_Renderer* r, const Node& n, bool selected, float pul
 
     // Tier indicator dots (right side)
     SDL_SetRenderDrawColor(r, 80, 180, 160, 200);
-    if (n.status != NodeStatus::Locked) {
+    if (n.status != NodeStatus::Locked || n.revealed) {
+        SDL_SetRenderDrawColor(r, 80, 180, 160, n.revealed && n.status == NodeStatus::Locked ? 120 : 200);
         for (int t = 0; t < n.tier; ++t) {
             SDL_Rect dot = { rx + rw - 8, ry + 4 + t * 7, 3, 3 };
             SDL_RenderFillRect(r, &dot);
         }
     }
 
-    // Vector icon — centered in room, dimmed if locked
-    uint8_t iconAlpha = (n.status == NodeStatus::Locked) ? 40 : (selected ? 240 : 180);
+    // Vector icon — centered in room, dimmed if locked (revealed nodes show partial icon)
+    uint8_t iconAlpha = (n.status == NodeStatus::Locked)
+        ? (n.revealed ? 110 : 40)
+        : (selected ? 240 : 180);
     int icx = rx + rw / 2;
     int icy = ry + rh / 2;
 
