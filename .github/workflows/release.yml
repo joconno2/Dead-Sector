@@ -1,0 +1,109 @@
+name: Release
+
+# Trigger on version tags: git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Native deps (Linux build + MinGW toolchain)
+      # -----------------------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake ninja-build zip \
+            libsdl2-dev libsdl2-ttf-dev \
+            g++-mingw-w64-x86-64 mingw-w64
+
+      # -----------------------------------------------------------------------
+      # Download Windows SDL2 dev packages (not stored in git)
+      # -----------------------------------------------------------------------
+      - name: Fetch Windows SDL2 packages
+        run: |
+          mkdir -p deps/windows
+          cd deps/windows
+          wget -q "https://github.com/libsdl-org/SDL/releases/download/release-2.32.4/SDL2-devel-2.32.4-mingw.tar.gz" \
+               -O SDL2-mingw.tar.gz
+          wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-devel-2.24.0-mingw.tar.gz" \
+               -O SDL2_ttf-mingw.tar.gz
+          tar xf SDL2-mingw.tar.gz
+          tar xf SDL2_ttf-mingw.tar.gz
+
+      # -----------------------------------------------------------------------
+      # Linux release build
+      # -----------------------------------------------------------------------
+      - name: Build Linux
+        run: |
+          cmake -S . -B build-linux \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+          cmake --build build-linux --parallel $(nproc)
+
+      - name: Package Linux
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p dist
+          DIR="dist/dead-sector-linux-${TAG}"
+          mkdir -p "$DIR"
+          cp build-linux/dead-sector "$DIR/"
+          cp -r build-linux/assets   "$DIR/"
+          cd dist
+          zip -r "dead-sector-linux-${TAG}.zip" "dead-sector-linux-${TAG}/"
+
+      # -----------------------------------------------------------------------
+      # Windows cross-compile
+      # -----------------------------------------------------------------------
+      - name: Build Windows
+        run: |
+          cmake -S . -B build-windows \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw64.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+          cmake --build build-windows --parallel $(nproc)
+
+      - name: Package Windows
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          DIR="dist/dead-sector-windows-${TAG}"
+          mkdir -p "$DIR"
+          cp build-windows/dead-sector.exe "$DIR/"
+          cp build-windows/SDL2.dll        "$DIR/"
+          cp build-windows/SDL2_ttf.dll    "$DIR/"
+          cp -r build-windows/assets       "$DIR/"
+          cd dist
+          zip -r "dead-sector-windows-${TAG}.zip" "dead-sector-windows-${TAG}/"
+
+      # -----------------------------------------------------------------------
+      # Create GitHub Release and upload both zips
+      # -----------------------------------------------------------------------
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Dead Sector ${{ github.ref_name }}"
+          body: |
+            ## Dead Sector ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File |
+            |---|---|
+            | Windows (x64) | `dead-sector-windows-${{ github.ref_name }}.zip` |
+            | Linux (x64) | `dead-sector-linux-${{ github.ref_name }}.zip` |
+
+            **Windows:** extract the zip, double-click `dead-sector.exe`. SDL2.dll and SDL2_ttf.dll are included.
+
+            **Linux:** extract the zip, run `./dead-sector`. Requires `libsdl2-2.0-0` and `libsdl2-ttf-2.0-0` (`apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0`).
+          files: |
+            dist/dead-sector-windows-${{ github.ref_name }}.zip
+            dist/dead-sector-linux-${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false

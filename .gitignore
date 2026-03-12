@@ -1,7 +1,18 @@
 build/
+build-linux/
+build-windows/
 *.o
 *.a
 *.so
 *.out
 .cache/
 compile_commands.json
+dead-sector.sav
+
+# Downloaded Windows SDL deps (fetched by CI; too large for git)
+deps/windows/SDL2-*/
+deps/windows/SDL2_ttf-*/
+deps/windows/*.tar.gz
+
+# Release output
+dist/
