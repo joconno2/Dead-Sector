@@ -1,0 +1,36 @@
+#pragma once
+#include <SDL.h>
+#include <memory>
+#include "scenes/SceneContext.hpp"
+#include "scenes/SceneManager.hpp"
+
+class VectorRenderer;
+class HUD;
+class NodeMap;
+class ModSystem;
+class ProgramSystem;
+
+class Game {
+public:
+    Game();
+    ~Game();
+
+    bool init();
+    void run();
+    void shutdown();
+
+private:
+    SDL_Window*         m_window     = nullptr;
+    SDL_Renderer*       m_renderer   = nullptr;
+    SDL_GameController* m_controller = nullptr;
+
+    std::unique_ptr<VectorRenderer> m_vrenderer;
+    std::unique_ptr<HUD>            m_hud;
+    std::unique_ptr<SceneManager>   m_scenes;
+    std::unique_ptr<NodeMap>        m_nodeMap;
+    std::unique_ptr<ModSystem>      m_mods;
+    std::unique_ptr<ProgramSystem>  m_programs;
+
+    SceneContext m_ctx;
+    bool         m_running = false;
+};
