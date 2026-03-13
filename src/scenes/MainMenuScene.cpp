@@ -5,6 +5,8 @@
 #include "ShopScene.hpp"
 #include "ShipSelectScene.hpp"
 #include "SettingsScene.hpp"
+#include "CreditsScene.hpp"
+#include "WorldSelectScene.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
 #include "world/NodeMap.hpp"
@@ -68,9 +70,10 @@ static const char* MENU_LABELS[] = {
     "ENDLESS",
     "SHOP",
     "SETTINGS",
+    "CREDITS",
     "QUIT",
 };
-static constexpr int MENU_COUNT = 5;
+static constexpr int MENU_COUNT = 6;
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -121,6 +124,9 @@ void MainMenuScene::selectCurrent(SceneContext& ctx) {
         case MenuItem::Settings:
             ctx.scenes->replace(std::make_unique<SettingsScene>());
             break;
+        case MenuItem::Credits:
+            ctx.scenes->replace(std::make_unique<CreditsScene>());
+            break;
         case MenuItem::Quit:
             if (ctx.running) *ctx.running = false;
             break;
@@ -164,14 +170,15 @@ void MainMenuScene::startNewRun(SceneContext& ctx) {
     ctx.runCredits  = 0;
     ctx.runKills    = 0;
     ctx.runNodes    = 0;
+    ctx.currentWorld = 0;
     ctx.endlessMode = false;
     ctx.endlessWave = 0;
     ctx.runBonuses.clear();
 
     applyShopUpgrades(ctx);
 
-    // Ship selection first; ShipSelectScene → MapScene → LoadoutScene → CombatScene
-    ctx.scenes->replace(std::make_unique<ShipSelectScene>());
+    // World selection first; WorldSelectScene → ShipSelectScene → MapScene → …
+    ctx.scenes->replace(std::make_unique<WorldSelectScene>());
 }
 
 void MainMenuScene::startEndless(SceneContext& ctx) {
@@ -245,7 +252,6 @@ void MainMenuScene::render(SceneContext& ctx) {
     {
         static constexpr float CYCLE = 60.f;
         static constexpr float FADE  = 1.5f;
-        static constexpr int   CW    = 12; // approx pixels per char at font size 20
         float t   = std::fmod(m_time, CYCLE);
         int   idx = (int)(m_time / CYCLE) % QUOTE_COUNT;
         float alpha = (t < FADE) ? t / FADE : (t > CYCLE - FADE) ? (CYCLE - t) / FADE : 1.f;
@@ -254,9 +260,9 @@ void MainMenuScene::render(SceneContext& ctx) {
 
         const Quote& q = QUOTE_LIST[idx];
 
-        // Center each line independently
-        auto centredX = [](const char* s) {
-            return Constants::SCREEN_W / 2 - (int)(strlen(s) * CW / 2);
+        // Center each line using actual rendered width
+        auto centredX = [&](const char* s) {
+            return Constants::SCREEN_W / 2 - ctx.hud->measureText(s) / 2;
         };
 
         int attrY;
@@ -307,11 +313,14 @@ void MainMenuScene::render(SceneContext& ctx) {
         ctx.hud->drawLabel(runStr, 20, Constants::SCREEN_H - 28, {50, 100, 80, 160});
     }
 
-    // Version / build info
-    ctx.hud->drawLabel((std::string(Constants::VERSION) + "  ARROW KEYS/DPAD: NAV  ENTER/A: SELECT").c_str(),
-                       Constants::SCREEN_W / 2 - 220,
-                       Constants::SCREEN_H - 28,
-                       {40, 70, 60, 140});
+    // Version / build info — version bottom-left, nav hint centred
+    ctx.hud->drawLabel(Constants::VERSION, 20, Constants::SCREEN_H - 28, {40, 70, 60, 140});
+    {
+        const char* hint = "ARROWS/DPAD: NAVIGATE   ENTER/A: SELECT";
+        int hw = ctx.hud->measureText(hint);
+        ctx.hud->drawLabel(hint, Constants::SCREEN_W / 2 - hw / 2,
+                           Constants::SCREEN_H - 28, {40, 70, 60, 140});
+    }
 
     SDL_RenderPresent(r);
 }

@@ -6,8 +6,10 @@
 #include "NodeCompleteScene.hpp"
 #include "RunSummaryScene.hpp"
 #include "VictoryScene.hpp"
+#include "WorldCompleteScene.hpp"
 #include "core/Constants.hpp"
 #include "core/SaveSystem.hpp"
+#include "core/Worlds.hpp"
 #include "systems/ModSystem.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
@@ -29,14 +31,16 @@ CombatScene::CombatScene(NodeConfig cfg) : m_config(cfg) {}
 
 void CombatScene::onEnter(SceneContext& ctx) {
     // Cooldown mult: mod-based × shop COOL_EXEC stacks
-    if (ctx.programs) {
-        ctx.programs->resetCooldowns();
-        float cdMult = ctx.mods ? ctx.mods->cdMult() : 1.f;
+    {
+        m_baseCdMult = ctx.mods ? ctx.mods->cdMult() : 1.f;
         if (ctx.saveData) {
             int stacks = ctx.saveData->purchaseCount("COOL_EXEC");
-            for (int i = 0; i < stacks; ++i) cdMult *= 0.90f;
+            for (int i = 0; i < stacks; ++i) m_baseCdMult *= 0.90f;
         }
-        ctx.programs->setCooldownMultiplier(cdMult);
+        if (ctx.programs) {
+            ctx.programs->resetCooldowns();
+            ctx.programs->setCooldownMultiplier(m_baseCdMult);
+        }
     }
 
     // Score multiplier: shop SCORE_BOOST (+20% per stack)
@@ -98,15 +102,16 @@ void CombatScene::onExit() {
 }
 
 void CombatScene::setupCollisionCallback(SceneContext& ctx) {
-    SceneManager* scenes     = ctx.scenes;
-    ModSystem*    mods       = ctx.mods;
-    bool*         invincible = &ctx.debugInvincible;
-    m_collision.setCallback([this, scenes, mods, invincible](const CollisionEvent& ev) {
+    SceneManager*    scenes     = ctx.scenes;
+    ModSystem*       mods       = ctx.mods;
+    bool*            invincible = &ctx.debugInvincible;
+    const SaveData*  saveData   = ctx.saveData;
+    m_collision.setCallback([this, scenes, mods, invincible, saveData](const CollisionEvent& ev) {
         if (ev.type == CollisionEvent::Type::ProjectileHitICE) {
             if (!ev.projectile->alive || !ev.iceEntity->alive) return;
 
-            bool pierce = false;
-            if (mods) {
+            bool pierce = ev.projectile->pierce;  // BREACH program
+            if (!pierce && mods) {
                 if (mods->hasPhantomRound()) pierce = true;
                 else if (mods->hasCritMatrix()) {
                     static thread_local std::mt19937 rng(std::random_device{}());
@@ -155,6 +160,27 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 }
             }
 
+            // OVERLOAD_COIL: killing a SpawnerICE detonates a 150px AoE
+            if (mods && mods->hasOverloadCoil()) {
+                bool wasSpawner = false;
+                for (auto& sp : m_spawnerICE)
+                    if (sp.get() == ev.iceEntity) { wasSpawner = true; break; }
+                if (wasSpawner) {
+                    for (auto& e : m_hunters)
+                        if (e->alive && (e->pos - killPos).length() <= 150.f) {
+                            e->alive = false;
+                            m_score += static_cast<int>(e->scoreValue() * m_scoreMult);
+                            m_iceKilled++;
+                        }
+                    for (auto& e : m_sentries)
+                        if (e->alive && (e->pos - killPos).length() <= 150.f) {
+                            e->alive = false;
+                            m_score += static_cast<int>(e->scoreValue() * m_scoreMult);
+                            m_iceKilled++;
+                        }
+                }
+            }
+
         } else if (ev.type == CollisionEvent::Type::AvatarHitICE) {
             if (!ev.avatar->alive) return;
             if (ev.avatar->shielded || *invincible) { ev.iceEntity->alive = false; return; }
@@ -176,6 +202,13 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             ev.avatar->alive    = false;
             ev.iceEntity->alive = false;
             m_trace.onHit();
+            // DEADMAN_SWITCH: kill all ICE within 200px on death
+            if (mods && mods->hasDeadmanSwitch()) {
+                Vec2 dp = ev.avatar->pos;
+                for (auto& e : m_hunters)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_sentries)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_spawnerICE) if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+            }
             scenes->replace(std::make_unique<GameOverScene>(m_score));
 
         } else if (ev.type == CollisionEvent::Type::EnemyProjectileHitAvatar) {
@@ -192,6 +225,39 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             ev.enemyProj->alive = false;
             ev.avatar->alive    = false;
             m_trace.onHit();
+            // DEADMAN_SWITCH: kill all ICE within 200px on death
+            if (mods && mods->hasDeadmanSwitch()) {
+                Vec2 dp = ev.avatar->pos;
+                for (auto& e : m_hunters)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_sentries)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_spawnerICE) if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+            }
+            scenes->replace(std::make_unique<GameOverScene>(m_score));
+
+        } else if (ev.type == CollisionEvent::Type::ProjectileHitAvatar) {
+            if (!ev.avatar->alive || !ev.projectile->alive) return;
+            // DEADBOLT PROTOCOL upgrade grants immunity to own bullets
+            bool immune = saveData && saveData->purchaseCount("DEADBOLT") > 0;
+            if (immune || ev.avatar->shielded || *invincible) {
+                ev.projectile->alive = false;
+                return;
+            }
+            ev.projectile->alive = false;
+            if (ev.avatar->extraLives > 0) {
+                ev.avatar->extraLives--;
+                ev.avatar->shieldTimer = 0.8f;
+                ev.avatar->shielded    = true;
+                m_trace.onHit();
+                return;
+            }
+            ev.avatar->alive = false;
+            m_trace.onHit();
+            if (mods && mods->hasDeadmanSwitch()) {
+                Vec2 dp = ev.avatar->pos;
+                for (auto& e : m_hunters)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_sentries)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_spawnerICE) if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+            }
             scenes->replace(std::make_unique<GameOverScene>(m_score));
         }
     });
@@ -205,6 +271,9 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_prog0Prev = m_prog1Prev = m_prog2Prev = false;
     m_empTimer          = 0.f;
     m_stealthTimer      = 0.f;
+    m_overclockTimer    = 0.f;
+    m_decoyTimer        = 0.f;
+    m_scatterCount      = 0;
     m_surviveTimer      = m_config.surviveSeconds;
     m_lastUpgradeKills  = 0;
     m_bossDeathTimer    = 0.f;
@@ -224,6 +293,7 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_particles.clear();
     m_fragments.clear();
     m_trace.reset();
+    if (m_config.startTrace > 0.f) m_trace.add(m_config.startTrace);
     m_trace.setTickRate(m_config.traceTickRate);
     m_spawner.reset();
 
@@ -246,11 +316,10 @@ void CombatScene::resetGame(SceneContext& ctx) {
         m_walls.clear();
     }
 
-    // Spawn boss for Boss objective nodes — offset from centre so it doesn't overlap player
+    // Spawn boss for Boss objective nodes — type determined by current world
     if (m_config.objective == NodeObjective::Boss) {
         static thread_local std::mt19937 rng(std::random_device{}());
-        std::uniform_int_distribution<int> d(0, 2);
-        BossType type = static_cast<BossType>(d(rng));
+        BossType type = static_cast<BossType>(worldDef(ctx.currentWorld).bossType);
 
         // Pick a random angle and place the boss ~220px from centre (player spawns at centre)
         std::uniform_real_distribution<float> aDist(0.f, 6.28318f);
@@ -399,13 +468,19 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         m_bossDeathTimer -= realDt;
         dt *= 0.10f;   // slow-mo during boss death sequence
         if (m_bossDeathTimer <= 0.f) {
-            // Boss killed — Victory!
             m_complete = true;
             ctx.runNodes++;
-            HullType hull = HullType::Delta;
-            if (ctx.saveData) hull = hullFromString(ctx.saveData->activeHull);
-            ctx.scenes->replace(std::make_unique<VictoryScene>(
-                m_score, m_iceKilled, ctx.runNodes, hull));
+            if (ctx.currentWorld < 2) {
+                // Advance to the next world
+                ctx.scenes->replace(std::make_unique<WorldCompleteScene>(
+                    ctx.currentWorld, m_score, m_iceKilled));
+            } else {
+                // Final world beaten — true victory
+                HullType hull = HullType::Delta;
+                if (ctx.saveData) hull = hullFromString(ctx.saveData->activeHull);
+                ctx.scenes->replace(std::make_unique<VictoryScene>(
+                    m_score, m_iceKilled, ctx.runNodes, hull));
+            }
             return;
         }
     }
@@ -444,8 +519,9 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     float speedCapMult= hs.speedMult     * (ctx.mods ? ctx.mods->maxSpeedMult()  : 1.f);
     float pSpeedMult  = hs.projSpeedMult * (ctx.mods ? ctx.mods->projSpeedMult() : 1.f);
     float pRadMult    = ctx.mods ? ctx.mods->projRadiusMult(): 1.f;
-    bool  splitRound  = ctx.mods ? ctx.mods->hasSplitRound() : false;
-    bool  overcharge  = ctx.mods ? ctx.mods->hasOvercharge()  : false;
+    bool  splitRound  = ctx.mods ? ctx.mods->hasSplitRound()  : false;
+    bool  overcharge  = ctx.mods ? ctx.mods->hasOvercharge()   : false;
+    bool  scatterCore = ctx.mods ? ctx.mods->hasScatterCore()  : false;
 
     if (m_avatar && m_avatar->alive) {
         if (m_input.rotLeft)       m_avatar->rotateLeft(dt  * rotMult);
@@ -470,6 +546,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                 if (hasRicochetMod) p->noWrap = true;
                 m_projectiles.emplace_back(p);
                 m_shotCount++;
+                m_scatterCount++;
                 if (m_audio) m_audio->playShot();
 
                 if (splitRound && m_shotCount % 3 == 0) {
@@ -494,6 +571,20 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                         m_projectiles.push_back(std::move(burst));
                     }
                 }
+
+                // SCATTER_CORE: every 4th shot fires 2 additional spread shots
+                if (scatterCore && m_scatterCount % 4 == 0) {
+                    constexpr float SCATTER_SPREAD[] = { -0.436f, 0.436f };  // ±25°
+                    for (float off : SCATTER_SPREAD) {
+                        float a   = m_avatar->angle + off;
+                        Vec2  dir = Vec2::fromAngle(a);
+                        Vec2  spos = m_avatar->pos + dir * 16.f;
+                        auto  sp2 = std::make_unique<Projectile>(spos, dir * (Constants::PROJ_SPEED * pSpeedMult), a);
+                        sp2->radius *= pRadMult;
+                        if (hasRicochetMod) sp2->noWrap = true;
+                        m_projectiles.push_back(std::move(sp2));
+                    }
+                }
             }
         }
         m_firePrev = m_input.fire;
@@ -507,8 +598,15 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     m_prog2Prev = m_input.prog2;
 
     if (ctx.programs) ctx.programs->update(dt);
-    if (m_empTimer     > 0.f) m_empTimer     -= dt;
-    if (m_stealthTimer > 0.f) m_stealthTimer -= dt;
+    if (m_empTimer       > 0.f) m_empTimer       -= dt;
+    if (m_stealthTimer   > 0.f) m_stealthTimer   -= dt;
+    if (m_overclockTimer > 0.f) {
+        m_overclockTimer -= dt;
+        if (ctx.programs) ctx.programs->setCooldownMultiplier(m_baseCdMult * 0.5f);
+        if (m_overclockTimer <= 0.f && ctx.programs)
+            ctx.programs->setCooldownMultiplier(m_baseCdMult);
+    }
+    if (m_decoyTimer > 0.f) m_decoyTimer -= dt;
 
     // Physics
     std::vector<Entity*> all;
@@ -559,7 +657,12 @@ void CombatScene::update(float dt, SceneContext& ctx) {
 
     // AI
     if (m_empTimer <= 0.f) {
-        auto aiResult = m_ai.update(dt, m_hunters, m_sentries, m_spawnerICE, m_avatar.get());
+        AIConfig aiCfg;
+        aiCfg.decoyActive        = (m_decoyTimer > 0.f);
+        aiCfg.decoyPos           = m_decoyPos;
+        aiCfg.sentryFireRateMult = ctx.mods ? ctx.mods->sentryFireRateMult() : 1.f;
+
+        auto aiResult = m_ai.update(dt, m_hunters, m_sentries, m_spawnerICE, m_avatar.get(), aiCfg);
         for (auto& ep : aiResult.firedProjectiles)
             m_enemyProjectiles.push_back(std::move(ep));
         for (auto& h : aiResult.spawnedHunters)
@@ -772,6 +875,35 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
         for (auto& e : m_spawnerICE) if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
         break;
     }
+    case ProgramID::CLONE: {
+        if (!m_avatar) break;
+        // Place decoy 200px in a random direction from the avatar
+        static thread_local std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<float> aDist(0.f, 6.28318f);
+        float a = aDist(rng);
+        m_decoyPos   = m_avatar->pos + Vec2::fromAngle(a) * 200.f;
+        m_decoyTimer = 4.0f;
+        break;
+    }
+    case ProgramID::OVERCLOCK:
+        m_overclockTimer = 6.0f;
+        if (ctx.programs) ctx.programs->setCooldownMultiplier(m_baseCdMult * 0.5f);
+        break;
+    case ProgramID::BLACKOUT:
+        m_enemyProjectiles.clear();
+        break;
+    case ProgramID::BREACH: {
+        if (!m_avatar) break;
+        // Fire a fast, long-lived, piercing projectile in the avatar's facing direction
+        float a      = m_avatar->angle;
+        Vec2  dir    = Vec2::fromAngle(a);
+        Vec2  bpos   = m_avatar->pos + dir * 20.f;
+        auto  beam   = std::make_unique<Projectile>(bpos, dir * (Constants::PROJ_SPEED * 3.f), a);
+        beam->lifetime = 2.0f;
+        beam->pierce   = true;
+        m_projectiles.push_back(std::move(beam));
+        break;
+    }
     default: break;
     }
 }
@@ -790,7 +922,7 @@ void CombatScene::checkObjective(SceneContext& ctx) {
             m_complete = true;
             ctx.endlessWave++;
             ctx.scenes->replace(std::make_unique<NodeCompleteScene>(
-                -1, m_score, m_iceKilled, 10, true, ctx.endlessWave));
+                -1, m_score, m_iceKilled, 10, true, ctx.endlessWave, m_trace.trace()));
         }
         return;
     }
@@ -845,17 +977,16 @@ void CombatScene::render(SceneContext& ctx) {
 
     vr->clear();
 
-    uint8_t gr, gg, gb;
-    switch (m_config.tier) {
-        case 2:  gr=20;  gg=80;  gb=50;  break;
-        case 3:  gr=80;  gg=50;  gb=20;  break;
-        case 4:  gr=80;  gg=20;  gb=50;  break;
-        default: gr=20;  gg=50;  gb=80;  break;
-    }
+    const WorldTheme& wt = worldDef(ctx.currentWorld).theme;
+    // Grid gets the world base color, node tier adds a subtle brightness shift
+    float tierBoost = (m_config.tier - 1) * 0.15f;
+    uint8_t gr = (uint8_t)(wt.gridR + wt.gridR * tierBoost);
+    uint8_t gg = (uint8_t)(wt.gridG + wt.gridG * tierBoost);
+    uint8_t gb = (uint8_t)(wt.gridB + wt.gridB * tierBoost);
     vr->drawGrid(gr, gg, gb);
 
-    // Walls — dim teal glow
-    m_walls.render(vr, 0, 160, 180);
+    // Walls — dim glow in world accent color
+    m_walls.render(vr, wt.accentR / 4, wt.accentG / 4, wt.accentB / 4);
 
     GlowColor projColor   = { Constants::COL_PROJ_R,   Constants::COL_PROJ_G,   Constants::COL_PROJ_B   };
     GlowColor avatarColor = { Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B };
@@ -892,6 +1023,19 @@ void CombatScene::render(SceneContext& ctx) {
     if (m_avatar && m_avatar->alive)
         vr->drawGlowPoly(m_avatar->worldVerts(), avatarColor);
 
+    // CLONE decoy — ghost ship at decoy position with pulsing dim color
+    if (m_decoyTimer > 0.f && m_avatar) {
+        float fade = std::min(m_decoyTimer / 4.f, 1.f);
+        float dpulse = 0.4f + 0.3f * std::sin(SDL_GetTicks() * 0.006f);
+        GlowColor dc = { (uint8_t)(60 * fade * dpulse),
+                          (uint8_t)(200 * fade * dpulse),
+                          (uint8_t)(255 * fade * dpulse) };
+        auto verts = m_avatar->worldVerts();
+        Vec2 off = m_decoyPos - m_avatar->pos;
+        for (auto& v : verts) { v.x += off.x; v.y += off.y; }
+        vr->drawGlowPoly(verts, dc);
+    }
+
     if (m_empTimer > 0.f) {
         SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(ctx.renderer, 0, 200, 200, 18);
@@ -922,8 +1066,8 @@ void CombatScene::render(SceneContext& ctx) {
                    + " / " + std::to_string(m_config.sweepTarget);
         }
         SDL_Color cyan = { 100, 220, 200, 220 };
-        int approxW = (int)objStr.size() * 12;
-        ctx.hud->drawLabel(objStr, Constants::SCREEN_W / 2 - approxW / 2,
+        int objW = ctx.hud->measureText(objStr);
+        ctx.hud->drawLabel(objStr, Constants::SCREEN_W / 2 - objW / 2,
                            Constants::SCREEN_H - 38, cyan);
     }
 
@@ -1102,7 +1246,7 @@ void CombatScene::renderPauseOverlay(SceneContext& ctx) const {
     constexpr int MENU_W  = 340;
     constexpr int CHART_W = 280;
     constexpr int GAP     = 16;
-    constexpr int PANEL_H = 300;
+    constexpr int PANEL_H = 320;
     constexpr int TOTAL_W = MENU_W + GAP + CHART_W;
 
     int panelX = Constants::SCREEN_W / 2 - TOTAL_W / 2;
@@ -1138,22 +1282,27 @@ void CombatScene::renderPauseOverlay(SceneContext& ctx) const {
         SDL_Color valCol   = sel ? SDL_Color{220, 220, 80, 255}
                                  : SDL_Color{150, 200, 80, 200};
 
+        bool isVol = !entries[i].value.empty();
+        int rowH = isVol ? 46 : 26;
         if (sel) {
             SDL_SetRenderDrawColor(r, 0, (Uint8)(30+15*p), (Uint8)(22+10*p), 120);
-            SDL_Rect row = { panelX+8, ry-3, MENU_W-16, 26 };
+            SDL_Rect row = { panelX+8, ry-3, MENU_W-16, rowH };
             SDL_RenderFillRect(r, &row);
         }
 
         std::string lbl = sel ? ("> " + std::string(entries[i].label))
                                : ("  " + std::string(entries[i].label));
         ctx.hud->drawLabel(lbl.c_str(), panelX+16, ry, labelCol);
-        if (!entries[i].value.empty())
-            ctx.hud->drawLabel(entries[i].value.c_str(), panelX+200, ry, valCol);
-        ry += 44;
+        if (isVol) {
+            ctx.hud->drawLabel(entries[i].value.c_str(), panelX+26, ry+22, valCol);
+            ry += 62;
+        } else {
+            ry += 44;
+        }
     }
 
     SDL_Color hintCol = { 50, 90, 70, 160 };
-    ctx.hud->drawLabel("ESC/START: resume  L/R: adjust vol",
+    ctx.hud->drawLabel("ESC/START: resume  L/R: vol",
                        panelX+12, panelY+PANEL_H-22, hintCol);
 
     // Right build chart panel

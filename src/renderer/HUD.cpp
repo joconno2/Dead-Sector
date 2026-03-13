@@ -41,6 +41,35 @@ void HUD::drawLabel(const std::string& text, int x, int y, SDL_Color color) {
     drawText(text, x, y, color);
 }
 
+int HUD::measureText(const std::string& text) const {
+    if (!m_font || text.empty()) return 0;
+    int w = 0, h = 0;
+    TTF_SizeText(m_font, text.c_str(), &w, &h);
+    return w;
+}
+
+int HUD::drawWrapped(const std::string& text, int x, int y, int maxW,
+                     SDL_Color color, int lineH) {
+    std::istringstream iss(text);
+    std::string word, line;
+    int linesDrawn = 0;
+    while (iss >> word) {
+        std::string candidate = line.empty() ? word : (line + ' ' + word);
+        if (!line.empty() && measureText(candidate) > maxW) {
+            drawText(line, x, y + linesDrawn * lineH, color);
+            ++linesDrawn;
+            line = word;
+        } else {
+            line = candidate;
+        }
+    }
+    if (!line.empty()) {
+        drawText(line, x, y + linesDrawn * lineH, color);
+        ++linesDrawn;
+    }
+    return linesDrawn;
+}
+
 void HUD::render(int score, float tracePercent,
                  const ProgramSystem* programs, const ModSystem* mods,
                  bool hasController) {
@@ -72,7 +101,8 @@ void HUD::render(int score, float tracePercent,
             }
             std::string label = def.name;
             if (unique[i].second > 1) label += " x" + std::to_string(unique[i].second);
-            drawText(label, Constants::SCREEN_W - 180, 12 + i * 22, {mr,mg,mb,200});
+            int lw = measureText(label);
+            drawText(label, Constants::SCREEN_W - 8 - lw, 12 + i * 22, {mr,mg,mb,200});
         }
     }
 
@@ -179,7 +209,11 @@ void HUD::drawProgramSlots(const ProgramSystem* prog, bool hasController) {
         } else {
             const auto& def = getProgramDef(prog->slotID(i));
             SDL_Color nameCol = onCD ? SDL_Color{80,80,80,200} : SDL_Color{220,220,200,255};
-            drawText(def.name, sx + 4, sy + 18, nameCol);
+            // Truncate name if it would overflow the slot (max ~8 chars at font size 20)
+            std::string name = def.name;
+            while (name.size() > 4 && measureText(name) > SLOT_W - 8)
+                name = name.substr(0, name.size() - 1);
+            drawText(name, sx + 4, sy + 18, nameCol);
         }
     }
 }
@@ -199,7 +233,7 @@ void HUD::drawBossBar(const char* name, int hp, int maxHp) {
 
     // Label: "// BOSS: NAME //"
     std::string label = std::string("// ") + name + " //";
-    int lx = cx - (int)(label.size() * 6);  // approx center
+    int lx = cx - measureText(label) / 2;
     drawText(label, lx, barY - 18, {220, 60, 60, 230});
 
     SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);

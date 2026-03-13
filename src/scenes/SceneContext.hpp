@@ -33,6 +33,9 @@ struct SceneContext {
     int                 runKills   = 0;
     int                 runNodes   = 0;
 
+    // Multi-world run state
+    int                 currentWorld = 0;  // 0=SECTOR ALPHA, 1=DEEP NET, 2=THE CORE
+
     // Endless mode
     bool                endlessMode = false;
     int                 endlessWave = 0;

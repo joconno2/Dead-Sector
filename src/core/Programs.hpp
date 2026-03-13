@@ -1,7 +1,6 @@
 #pragma once
 #include <array>
 #include <cstdint>
-#include <cstdint>
 
 enum class ProgramRarity : uint8_t { Common, Uncommon, Rare };
 
@@ -21,7 +20,11 @@ enum class ProgramID : uint8_t {
     OVERDRIVE = 4,  // Speed boost for 5s
     DECRYPT   = 5,  // Destroy nearest ICE instantly
     FEEDBACK  = 6,  // Radial damage burst (r=150)
-    COUNT     = 7,
+    CLONE     = 7,  // Decoy draws ICE for 4s
+    OVERCLOCK = 8,  // Halve all cooldowns for 6s
+    BLACKOUT  = 9,  // Erase all enemy projectiles
+    BREACH    = 10, // Piercing beam across screen
+    COUNT     = 11,
     NONE      = 0xFF  // empty slot sentinel
 };
 
@@ -34,15 +37,19 @@ struct ProgramDef {
     AbilityType    abilityType;
 };
 
-inline constexpr std::array<ProgramDef, 8> PROGRAM_DEFS = {{
-    { ProgramID::FRAG,      "FRAG",      "3-way burst shot",       4.f,  ProgramRarity::Common,   AbilityType::Offense },
-    { ProgramID::EMP,       "EMP",       "Stun all ICE for 2s",   12.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
-    { ProgramID::STEALTH,   "STEALTH",   "Halt trace for 8s",     15.f,  ProgramRarity::Rare,     AbilityType::Stealth },
-    { ProgramID::SHIELD,    "SHIELD",    "Invincible for 2s",     10.f,  ProgramRarity::Common,   AbilityType::Defense },
-    { ProgramID::OVERDRIVE, "OVRDRIVE",  "Speed boost for 5s",     8.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
-    { ProgramID::DECRYPT,   "DECRYPT",   "Delete nearest ICE",     6.f,  ProgramRarity::Rare,     AbilityType::Neural  },
-    { ProgramID::FEEDBACK,  "FEEDBACK",  "Radial burst r=150",     7.f,  ProgramRarity::Rare,     AbilityType::Offense },
-    { ProgramID::NONE,      "------",    "[empty slot]",           0.f,  ProgramRarity::Common,   AbilityType::Neural  },
+inline constexpr std::array<ProgramDef, 12> PROGRAM_DEFS = {{
+    { ProgramID::FRAG,      "FRAG",      "3-way burst shot",          4.f,  ProgramRarity::Common,   AbilityType::Offense },
+    { ProgramID::EMP,       "EMP",       "Stun all ICE for 2s",      12.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
+    { ProgramID::STEALTH,   "STEALTH",   "Halt trace for 8s",        15.f,  ProgramRarity::Rare,     AbilityType::Stealth },
+    { ProgramID::SHIELD,    "SHIELD",    "Invincible for 2s",        10.f,  ProgramRarity::Common,   AbilityType::Defense },
+    { ProgramID::OVERDRIVE, "OVRDRIVE",  "Speed boost for 5s",        8.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
+    { ProgramID::DECRYPT,   "DECRYPT",   "Delete nearest ICE",        6.f,  ProgramRarity::Rare,     AbilityType::Neural  },
+    { ProgramID::FEEDBACK,  "FEEDBACK",  "Radial burst r=150",        7.f,  ProgramRarity::Rare,     AbilityType::Offense },
+    { ProgramID::CLONE,     "CLONE",     "Decoy draws ICE for 4s",   18.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
+    { ProgramID::OVERCLOCK, "OVERCLOCK", "Halve all cooldowns 6s",   20.f,  ProgramRarity::Rare,     AbilityType::Neural  },
+    { ProgramID::BLACKOUT,  "BLACKOUT",  "Erase all enemy fire",      9.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
+    { ProgramID::BREACH,    "BREACH",    "Piercing beam, full range", 14.f,  ProgramRarity::Rare,     AbilityType::Offense },
+    { ProgramID::NONE,      "------",    "[empty slot]",              0.f,  ProgramRarity::Common,   AbilityType::Neural  },
 }};
 
 inline const ProgramDef& getProgramDef(ProgramID id) {
@@ -54,15 +61,14 @@ inline const ProgramDef& getProgramDef(ProgramID id) {
 // Returns the RGB theme color for an ability type
 inline void abilityTypeColor(AbilityType t, uint8_t& R, uint8_t& G, uint8_t& B) {
     switch (t) {
-        case AbilityType::Offense: R=230; G=160; B=20;  return;  // warm yellow-orange
-        case AbilityType::Defense: R=40;  G=210; B=100; return;  // bright green
-        case AbilityType::Neural:  R=170; G=50;  B=255; return;  // vivid purple
-        case AbilityType::Stealth: R=50;  G=160; B=255; return;  // electric blue
+        case AbilityType::Offense: R=230; G=160; B=20;  return;
+        case AbilityType::Defense: R=40;  G=210; B=100; return;
+        case AbilityType::Neural:  R=170; G=50;  B=255; return;
+        case AbilityType::Stealth: R=50;  G=160; B=255; return;
     }
     R=G=B=140;
 }
 
-// Returns AbilityType for a given rarity name string for display
 inline const char* abilityTypeName(AbilityType t) {
     switch (t) {
         case AbilityType::Offense: return "OFFENSE";

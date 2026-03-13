@@ -18,6 +18,7 @@ enum class ModID : uint8_t {
     HULL_PLATING,      // Rare      - +1 extra life at start   (stackable)
     PHASE_FRAME,       // Rare      - Each kill: 0.5s invuln   (non-stackable)
     REACTIVE_PLATING,  // Rare      - Hit: 150px damage burst  (non-stackable)
+    DEADMAN_SWITCH,    // Rare      - On death: 200px AoE kill (non-stackable)
 
     // === WEAPON ===
     HOT_BARREL,        // Common    - Proj speed +30%          (stackable)
@@ -29,12 +30,15 @@ enum class ModID : uint8_t {
     CHAIN_FIRE,        // Legendary - Kill: instant shot at next ICE (non-stackable)
     PHANTOM_ROUND,     // Legendary - Shots pierce ALL ICE      (non-stackable)
     CRIT_MATRIX,       // Legendary - 30%: shot survives kill  (non-stackable)
+    SCATTER_CORE,      // Rare      - Every 4th shot splits×3  (non-stackable)
+    OVERLOAD_COIL,     // Uncommon  - Spawner kill: 150px AoE  (non-stackable)
 
     // === NEURAL ===
     COLD_EXEC,         // Common    - Program CDs -25%          (stackable)
     TRACE_SINK,        // Uncommon  - Each kill -6% trace       (stackable)
     GHOST_PROTOCOL,    // Rare      - Trace tick rate -40%      (non-stackable)
     NEURAL_OVERCLOCK,  // Legendary - All stat mults +20%       (non-stackable)
+    SIGNAL_JAM,        // Uncommon  - Sentries fire 40% slower (non-stackable)
 
     COUNT
 };
@@ -71,12 +75,17 @@ inline constexpr std::array<ModDef, static_cast<int>(ModID::COUNT)> MOD_DEFS = {
     { ModID::CHAIN_FIRE,       "CHAIN FIRE",       "Kill: instant shot at next ICE",  ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Offense  },
     { ModID::PHANTOM_ROUND,    "PHANTOM ROUND",    "Shots pierce through all ICE",    ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Offense },
     { ModID::CRIT_MATRIX,      "CRIT MATRIX",      "30% chance: shot survives kill",  ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Offense },
+    { ModID::SCATTER_CORE,     "SCATTER CORE",     "Every 4th shot splits into 3",    ModCategory::Weapon,  ModRarity::Rare,      ModType::Passive, false, AbilityType::Offense },
+    { ModID::OVERLOAD_COIL,    "OVERLOAD COIL",    "Spawner kill: 150px AoE burst",   ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false, AbilityType::Offense },
     // Neural — Stat
     { ModID::COLD_EXEC,        "COLD EXEC",        "Program cooldowns -25%",          ModCategory::Neural,  ModRarity::Common,    ModType::Stat,    true,  AbilityType::Neural  },
     { ModID::TRACE_SINK,       "TRACE SINK",       "Each kill reduces trace 6%",      ModCategory::Neural,  ModRarity::Uncommon,  ModType::Stat,    true,  AbilityType::Neural  },
     // Neural — Passive
     { ModID::GHOST_PROTOCOL,   "GHOST PROTOCOL",   "Trace tick rate -40%",            ModCategory::Neural,  ModRarity::Rare,      ModType::Passive, false, AbilityType::Stealth },
     { ModID::NEURAL_OVERCLOCK, "NEURAL OVERCLOCK", "All stat multipliers +20%",       ModCategory::Neural,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Neural  },
+    { ModID::SIGNAL_JAM,       "SIGNAL JAM",       "Sentries fire 40% slower",        ModCategory::Neural,  ModRarity::Uncommon,  ModType::Passive, false, AbilityType::Stealth },
+    // Chassis — Passive (continued)
+    { ModID::DEADMAN_SWITCH,   "DEADMAN SWITCH",   "On death: 200px AoE kill",        ModCategory::Chassis, ModRarity::Rare,      ModType::Passive, false, AbilityType::Defense },
 }};
 
 inline const ModDef& getModDef(ModID id) {

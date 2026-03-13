@@ -23,7 +23,8 @@ SaveData SaveSystem::load(const std::string& path) {
         else if (key == "sfxVolume")   data.sfxVolume   = std::stoi(value);
         else if (key == "displayMode")    data.displayMode    = std::stoi(value);
         else if (key == "windowedWidth")  data.windowedWidth  = std::stoi(value);
-        else if (key == "windowedHeight") data.windowedHeight = std::stoi(value);
+        else if (key == "windowedHeight")  data.windowedHeight  = std::stoi(value);
+        else if (key == "worldsUnlocked")  data.worldsUnlocked  = std::stoi(value);
         else if (key == "activeHull" && !value.empty()) data.activeHull = value;
         else if (key == "purchases"  && !value.empty()) {
             std::istringstream ss(value);
@@ -54,6 +55,7 @@ void SaveSystem::save(const SaveData& data, const std::string& path) {
     f << "displayMode="    << data.displayMode    << "\n";
     f << "windowedWidth="  << data.windowedWidth  << "\n";
     f << "windowedHeight=" << data.windowedHeight << "\n";
+    f << "worldsUnlocked=" << data.worldsUnlocked << "\n";
     f << "activeHull="  << data.activeHull  << "\n";
 
     f << "purchases=";

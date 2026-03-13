@@ -16,7 +16,7 @@ class NodeCompleteScene : public IScene {
 public:
     // endless=true means nodeId==-1, return to a new CombatScene after upgrade pick
     NodeCompleteScene(int nodeId, int score, int iceKilled, int sweepTarget,
-                      bool endless = false, int endlessWave = 0);
+                      bool endless = false, int endlessWave = 0, float carryTrace = 0.f);
 
     void onEnter(SceneContext& ctx) override;
     void onExit()                   override;
@@ -33,6 +33,7 @@ private:
     int   m_sweepTarget;
     bool  m_endless     = false;
     int   m_endlessWave = 0;
+    float m_carryTrace  = 0.f;
     float m_timer   = 0.f;
     bool  m_cleared = false;
 

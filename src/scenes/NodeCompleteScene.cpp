@@ -70,9 +70,9 @@ static void generateBonuses(SceneContext& ctx, std::mt19937& rng) {
 
 // ---------------------------------------------------------------------------
 NodeCompleteScene::NodeCompleteScene(int nodeId, int score, int iceKilled, int sweepTarget,
-                                     bool endless, int endlessWave)
+                                     bool endless, int endlessWave, float carryTrace)
     : m_nodeId(nodeId), m_score(score), m_iceKilled(iceKilled), m_sweepTarget(sweepTarget)
-    , m_endless(endless), m_endlessWave(endlessWave)
+    , m_endless(endless), m_endlessWave(endlessWave), m_carryTrace(carryTrace)
 {}
 
 void NodeCompleteScene::onEnter(SceneContext& ctx) {
@@ -239,6 +239,7 @@ void NodeCompleteScene::returnToMap(SceneContext& ctx) {
         cfg.traceTickRate = 0.17f;
         cfg.endless       = true;
         cfg.endlessWave   = ctx.endlessWave;
+        cfg.startTrace    = m_carryTrace;
         ctx.scenes->replace(std::make_unique<CombatScene>(cfg));
     } else {
         if (ctx.nodeMap) ctx.scenes->replace(std::make_unique<MapScene>(*ctx.nodeMap));
@@ -405,10 +406,10 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
     if (card.kind == UpgradeCard::Kind::Program) {
         const ProgramDef& def = getProgramDef(card.progId);
         std::string cdStr = "CD: " + std::to_string((int)def.cooldown) + "s";
-        ctx.hud->drawLabel(typeLabel,  cx+10, cy+14,         typeCol);
-        ctx.hud->drawLabel(def.name,   cx+10, cy+46,         nameCol);
-        ctx.hud->drawLabel(def.desc,   cx+10, cy+82,         descCol);
-        ctx.hud->drawLabel(cdStr,      cx+10, cy+112,        descCol);
+        ctx.hud->drawLabel(typeLabel,  cx+10, cy+14, typeCol);
+        ctx.hud->drawLabel(def.name,   cx+10, cy+46, nameCol);
+        ctx.hud->drawWrapped(def.desc, cx+10, cy+78, CARD_W - 20, descCol, 20);
+        ctx.hud->drawLabel(cdStr,      cx+10, cy+120, descCol);
 
         // Rarity
         const char* rname = "";
@@ -420,9 +421,9 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
         ctx.hud->drawLabel(rname, cx+10, cy+CARD_H-50, rarityCol);
     } else {
         const ModDef& def = getModDef(card.modId);
-        ctx.hud->drawLabel(typeLabel,          cx+10, cy+14,     typeCol);
-        ctx.hud->drawLabel(def.name,           cx+10, cy+46,     nameCol);
-        ctx.hud->drawLabel(def.desc,           cx+10, cy+82,     descCol);
+        ctx.hud->drawLabel(typeLabel,              cx+10, cy+14,       typeCol);
+        ctx.hud->drawLabel(def.name,               cx+10, cy+46,       nameCol);
+        ctx.hud->drawWrapped(def.desc,             cx+10, cy+78,       CARD_W - 20, descCol, 20);
         ctx.hud->drawLabel(rarityName(def.rarity), cx+10, cy+CARD_H-50, rarityCol);
     }
 

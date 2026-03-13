@@ -34,6 +34,12 @@ public:
     bool hasPhantomRound()    const { return has(ModID::PHANTOM_ROUND);    }
     bool hasCritMatrix()      const { return has(ModID::CRIT_MATRIX);      }
     bool hasGhostProtocol()   const { return has(ModID::GHOST_PROTOCOL);   }
+    bool hasScatterCore()     const { return has(ModID::SCATTER_CORE);     }
+    bool hasOverloadCoil()    const { return has(ModID::OVERLOAD_COIL);    }
+    bool hasDeadmanSwitch()   const { return has(ModID::DEADMAN_SWITCH);   }
+    bool hasSignalJam()       const { return has(ModID::SIGNAL_JAM);       }
+    // Sentry fire rate interval multiplier (>1 = slower firing)
+    float sentryFireRateMult() const { return has(ModID::SIGNAL_JAM) ? 1.667f : 1.0f; }
 
     // Extra lives granted at node start (ADAPTIVE_ARMOR=1, +HULL_PLATING stacks)
     int  startingExtraLives() const;

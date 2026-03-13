@@ -16,6 +16,7 @@ struct CollisionEvent {
         ProjectileHitICE,
         AvatarHitICE,
         EnemyProjectileHitAvatar,
+        ProjectileHitAvatar,   // friendly fire
     };
     Type             type;
     Projectile*      projectile = nullptr;

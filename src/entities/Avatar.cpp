@@ -12,27 +12,25 @@ std::vector<Vec2> hullVerts(HullType hull) {
     switch (hull) {
 
     case HullType::Raptor:
-        // Forward-swept interceptor with canard fins near the nose.
-        // Both canards AND main wings reach ahead of the nose tip.
+        // Signal Knife — swept interceptor, tip at bottom, swept wings above centre,
+        // tapers to a clean closed handle at top.
         return {
-            {  0.f, -34.f },   // needle nose
-            {  3.f, -24.f },   // right cockpit
-            { 14.f, -32.f },   // right canard tip (forward fin, ahead of nose)
-            {  8.f, -14.f },   // right canard base rejoins fuselage
-            { 28.f, -30.f },   // right main wing tip (far-forward swept)
-            { 22.f,  -2.f },   // right wing trailing root
-            {  8.f,   8.f },   // right hip
-            {  5.f,  22.f },   // right engine pod
-            {  3.f,  30.f },   // right exhaust
-            {  0.f,  24.f },   // tail V-notch
-            { -3.f,  30.f },   // left exhaust
-            { -5.f,  22.f },   // left engine pod
-            { -8.f,   8.f },   // left hip
-            {-22.f,  -2.f },   // left wing trailing root
-            {-28.f, -30.f },   // left main wing tip
-            { -8.f, -14.f },   // left canard base
-            {-14.f, -32.f },   // left canard tip
-            { -3.f, -24.f },   // left cockpit
+            {  0.f,  34.f },   // needle tip (bottom)
+            {  3.f,  24.f },   // right near-tip
+            { 14.f,  32.f },   // right canard tip
+            {  8.f,  14.f },   // right canard base
+            { 28.f,  30.f },   // right main wing tip (swept)
+            { 22.f,   2.f },   // right wing trailing root
+            {  8.f,  -8.f },   // right hip
+            {  5.f, -22.f },   // right engine pod
+            {  0.f, -32.f },   // handle top — closed point
+            { -5.f, -22.f },   // left engine pod
+            { -8.f,  -8.f },   // left hip
+            {-22.f,   2.f },   // left wing trailing root
+            {-28.f,  30.f },   // left main wing tip
+            { -8.f,  14.f },   // left canard base
+            {-14.f,  32.f },   // left canard tip
+            { -3.f,  24.f },   // left near-tip
         };
 
     case HullType::Mantis:

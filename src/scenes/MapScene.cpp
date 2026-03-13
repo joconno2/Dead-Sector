@@ -3,6 +3,7 @@
 #include "SceneContext.hpp"
 #include "systems/ModSystem.hpp"
 #include "core/Mods.hpp"
+#include "core/Worlds.hpp"
 #include "SceneManager.hpp"
 #include "renderer/HUD.hpp"
 #include "core/Constants.hpp"
@@ -123,8 +124,9 @@ bool MapScene::jackIn(SceneContext& ctx) {
     const Node& n = m_nodeMap.node(m_cursor);
     if (n.status != NodeStatus::Available) return false;
 
-    // Compute trace tick rate from tier
-    float tickRate = 2.5f + (n.tier - 1) * 1.5f; // tier1=2.5, tier2=4.0, tier3=5.5, tier4=7.0
+    // Compute trace tick rate from tier, scaled by world difficulty
+    float worldMult = worldDef(ctx.currentWorld).diffMult;
+    float tickRate  = (2.5f + (n.tier - 1) * 1.5f) * worldMult;
 
     NodeConfig cfg;
     cfg.nodeId         = n.id;
@@ -174,8 +176,11 @@ void MapScene::render(SceneContext& ctx) {
 
     // Header + selected-node info
     if (ctx.hud) {
-        ctx.hud->drawLabel("// SYSTEM MAP //",
-                           Constants::SCREEN_W/2 - 100, 18, {0,220,180,255});
+        {
+            const char* t = "// SYSTEM MAP //";
+            ctx.hud->drawLabel(t, Constants::SCREEN_W/2 - ctx.hud->measureText(t)/2, 18,
+                               {0,220,180,255});
+        }
 
         const Node& sel = m_nodeMap.node(m_cursor);
         bool selKnown = (sel.status != NodeStatus::Locked || sel.revealed);
@@ -191,13 +196,14 @@ void MapScene::render(SceneContext& ctx) {
         else if (sel.revealed)                             statusStr = "LOCKED  --  clear an adjacent node to access";
         else                                               statusStr = "LOCKED";
 
-        ctx.hud->drawLabel(nodeInfo,   Constants::SCREEN_W/2 - 180, Constants::SCREEN_H - 56, {100,200,160,200});
-        ctx.hud->drawLabel(statusStr,  Constants::SCREEN_W/2 - 180, Constants::SCREEN_H - 34, {60,140,110,200});
+        // Anchor at SCREEN_H-28 (top of instruction bar) and draw upward
+        ctx.hud->drawLabel(nodeInfo,   Constants::SCREEN_W/2 - 180, Constants::SCREEN_H - 80, {100,200,160,200});
+        ctx.hud->drawLabel(statusStr,  Constants::SCREEN_W/2 - 180, Constants::SCREEN_H - 54, {60,140,110,200});
 
         // Mod inventory — top right
         if (ctx.mods && !ctx.mods->all().empty()) {
             const auto& mods = ctx.mods->all();
-            ctx.hud->drawLabel("INSTALLED:", Constants::SCREEN_W - 200, 18, {120,160,140,200});
+            ctx.hud->drawLabel("INSTALLED:", Constants::SCREEN_W - 8 - ctx.hud->measureText("INSTALLED:"), 18, {120,160,140,200});
             // Count unique mods
             std::vector<std::pair<ModID,int>> unique;
             for (ModID m : mods) {
@@ -216,7 +222,8 @@ void MapScene::render(SceneContext& ctx) {
                     case ModCategory::Neural:  mr=180; mg=60;  mb=255; break;
                     default:                   mr=140; mg=140; mb=140; break;
                 }
-                ctx.hud->drawLabel(label, Constants::SCREEN_W - 200, 40 + i * 22,
+                int lw = ctx.hud->measureText(label);
+                ctx.hud->drawLabel(label, Constants::SCREEN_W - 8 - lw, 40 + i * 22,
                                    {mr, mg, mb, 200});
             }
         }

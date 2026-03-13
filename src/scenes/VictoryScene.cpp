@@ -22,14 +22,16 @@ VictoryScene::VictoryScene(int score, int iceKilled, int nodesCleared, HullType 
 {}
 
 void VictoryScene::onEnter(SceneContext& ctx) {
-    m_time    = 0.f;
-    m_canExit = false;
+    m_time       = 0.f;
+    m_canExit    = false;
+    m_isFinalWin = (ctx.currentWorld >= 2);
 
     HullStats stats = statsForHull(m_hull);
     m_bonus = 5000 + m_iceKilled * 50;
 
     if (ctx.saveData) {
-        ctx.saveData->markGolden(stats.id);
+        if (m_isFinalWin)
+            ctx.saveData->markGolden(stats.id);  // golden hull only for world-3 completion
         ctx.runCredits += m_bonus;
         ctx.runBonuses.push_back({ "BREACH BONUS", m_bonus });
         SaveSystem::save(*ctx.saveData);
@@ -158,7 +160,8 @@ void VictoryScene::render(SceneContext& ctx) {
     ctx.hud->drawLabel("BREACH SUCCESSFUL", panelX + 16, panelY + 14, titleCol);
 
     SDL_Color subCol = { 180, 120, 20, 180 };
-    std::string hullStr = std::string("HULL: ") + stats.id + "  //  " + stats.name + "  [NOW GOLDEN]";
+    std::string hullStr = std::string("HULL: ") + stats.name
+                          + (m_isFinalWin ? "  [NOW GOLDEN]" : "");
     ctx.hud->drawLabel(hullStr.c_str(), panelX + 16, panelY + 38, subCol);
 
     SDL_SetRenderDrawColor(r, 100, 70, 10, 140);
@@ -187,9 +190,10 @@ void VictoryScene::render(SceneContext& ctx) {
     SDL_SetRenderDrawColor(r, 80, 60, 10, 120);
     SDL_RenderDrawLine(r, panelX+12, ry-4, panelX+panelW-12, ry-4);
 
-    ctx.hud->drawLabel("HULL GILDED:", panelX+20, ry, statCol);
-    std::string gildStr = std::string(stats.id) + " marked as GOLDEN";
-    ctx.hud->drawLabel(gildStr.c_str(), panelX+190, ry, bonCol); ry += 30;
+    if (m_isFinalWin) {
+        std::string gildStr = std::string("HULL GILDED: ") + stats.name;
+        ctx.hud->drawLabel(gildStr.c_str(), panelX+20, ry, bonCol); ry += 30;
+    }
 
     // Prompt
     if (m_canExit) {

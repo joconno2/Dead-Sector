@@ -14,8 +14,9 @@ struct SaveData {
     int  displayMode    = 2;    // 0=windowed, 1=fullscreen, 2=borderless (default: borderless)
     int  windowedWidth  = 1280;
     int  windowedHeight = 720;
+    int  worldsUnlocked = 1;    // number of worlds accessible as run start points (1–3)
     std::vector<std::string> purchases;   // shop item IDs already bought
-    std::vector<std::string> goldenHulls; // hulls that completed a run victory
+    std::vector<std::string> goldenHulls; // hulls that completed a world-3 run victory
 
     bool hasPurchase(const std::string& id) const {
         return std::find(purchases.begin(), purchases.end(), id) != purchases.end();

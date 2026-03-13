@@ -18,9 +18,10 @@ private:
     int      m_nodesCleared;
     HullType m_hull;
 
-    float m_time    = 0.f;
-    float m_canExit = false;
-    int   m_bonus   = 0;
+    float m_time       = 0.f;
+    float m_canExit    = false;
+    int   m_bonus      = 0;
+    bool  m_isFinalWin = false;  // true only when currentWorld == 2 (THE CORE)
 
     void renderGoldenShip(SDL_Renderer* r, float cx, float cy, float scale) const;
 };

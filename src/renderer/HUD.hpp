@@ -19,6 +19,13 @@ public:
     // Public text rendering for use by other scenes
     void drawLabel(const std::string& text, int x, int y, SDL_Color color);
 
+    // Returns the rendered pixel width of a string (0 if font not ready)
+    int measureText(const std::string& text) const;
+
+    // Word-wraps text into successive lines within maxW pixels, returns lines drawn
+    int drawWrapped(const std::string& text, int x, int y, int maxW,
+                    SDL_Color color, int lineH = 20);
+
     // Boss health bar — call from CombatScene render when boss is active
     void drawBossBar(const char* name, int hp, int maxHp);
 

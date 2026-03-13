@@ -9,4 +9,5 @@ public:
 
     float lifetime = Constants::PROJ_LIFETIME;
     bool  bounced  = false;  // for RICOCHET mod: only bounce once
+    bool  pierce   = false;  // for BREACH program: survives hitting any ICE
 };

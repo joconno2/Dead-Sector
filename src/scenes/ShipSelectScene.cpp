@@ -244,9 +244,6 @@ void ShipSelectScene::render(SceneContext& ctx) {
     if (golden) hdrStr += "  [GOLDEN]";
     ctx.hud->drawLabel(hdrStr.c_str(), tx, ty, hdrCol); ty += 24;
 
-    // Flavor text
-    ctx.hud->drawLabel(sel.flavor, tx, ty, dimCol); ty += 26;
-
     // Stat bars (simple text representation)
     auto pct = [](float v) -> std::string {
         int p = (int)((v - 1.f) * 100.f + 0.5f);
@@ -270,14 +267,14 @@ void ShipSelectScene::render(SceneContext& ctx) {
         }
     } else {
         ctx.hud->drawLabel(("SPEED:      " + pct(sel.speedMult)).c_str(),    tx,       ty, sel.speedMult    >= 1.f ? valCol : statCol);
-        ctx.hud->drawLabel(("THRUST:     " + pct(sel.thrustMult)).c_str(),   tx + 190, ty, sel.thrustMult   >= 1.f ? valCol : statCol);
+        ctx.hud->drawLabel(("THRUST:     " + pct(sel.thrustMult)).c_str(),   tx + 210, ty, sel.thrustMult   >= 1.f ? valCol : statCol);
         ty += 22;
         ctx.hud->drawLabel(("ROTATION:   " + pct(sel.rotMult)).c_str(),      tx,       ty, sel.rotMult      >= 1.f ? valCol : statCol);
-        ctx.hud->drawLabel(("SHOT SPEED: " + pct(sel.projSpeedMult)).c_str(),tx + 190, ty, sel.projSpeedMult>= 1.f ? valCol : statCol);
+        ctx.hud->drawLabel(("SHOT SPEED: " + pct(sel.projSpeedMult)).c_str(),tx + 210, ty, sel.projSpeedMult>= 1.f ? valCol : statCol);
         ty += 22;
         ctx.hud->drawLabel(("HITBOX:     " + pct(sel.radiusMult)).c_str(),   tx,       ty, sel.radiusMult   <= 1.f ? valCol : statCol);
         std::string ammoStr = "AMMO:       " + std::to_string(sel.startingAmmo);
-        ctx.hud->drawLabel(ammoStr.c_str(), tx + 190, ty, statCol);
+        ctx.hud->drawLabel(ammoStr.c_str(), tx + 210, ty, statCol);
         ty += 22;
         if (sel.extraLives > 0) {
             ctx.hud->drawLabel(("BONUS LIFE: +" + std::to_string(sel.extraLives)).c_str(), tx, ty, valCol);

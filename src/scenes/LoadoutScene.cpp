@@ -305,17 +305,9 @@ void LoadoutScene::drawCard(SceneContext& ctx, int idx) const {
     SDL_Color typeCol = { acR, acG, acB, selected ? (uint8_t)200 : (uint8_t)140 };
     ctx.hud->drawLabel(abilityTypeName(def.abilityType), cx + 12, cy + 30, typeCol);
 
-    // Description — wrap naively at ~22 chars
+    // Description — word-wrapped to fit the card
     SDL_Color descCol = { 120, 150, 140, 200 };
-    std::string desc = def.desc;
-    if ((int)desc.size() > 22) {
-        size_t split = desc.rfind(' ', 22);
-        if (split == std::string::npos) split = 22;
-        ctx.hud->drawLabel(desc.substr(0, split).c_str(), cx + 12, cy + 50, descCol);
-        ctx.hud->drawLabel(desc.substr(split + 1).c_str(), cx + 12, cy + 68, descCol);
-    } else {
-        ctx.hud->drawLabel(desc.c_str(), cx + 12, cy + 50, descCol);
-    }
+    ctx.hud->drawWrapped(def.desc, cx + 12, cy + 50, CARD_W - 20, descCol, 18);
 
     // Cooldown (bottom-left)
     SDL_Color cdCol = { 150, 150, 90, 200 };
@@ -429,8 +421,8 @@ void LoadoutScene::drawModCard(SceneContext& ctx, int idx) const {
     }
     ctx.hud->drawLabel(catLabel, cx + 12, cy + 56, { acR, acG, acB, 130 });
 
-    // Description
-    ctx.hud->drawLabel(def.desc, cx + 12, cy + 78, { 140, 160, 150, 200 });
+    // Description — word-wrapped to fit the card
+    ctx.hud->drawWrapped(def.desc, cx + 12, cy + 78, UPG_CARD_W - 24, { 140, 160, 150, 200 }, 20);
 
     // Type label (Stat/Passive)
     const char* typeLabel = def.type == ModType::Stat ? "STAT (stackable)" : "PASSIVE";

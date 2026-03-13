@@ -11,12 +11,14 @@ public:
     Node&       node(int id)        { return m_nodes[id]; }
 
     void clearNode(int id);
-    void reset();       // rebuild map for a new run
-    void revealAll();   // unlock all Locked nodes (REVEAL_MAP shop upgrade)
+    void reset(int worldId = 0);   // rebuild map for the given world
+    void revealAll();              // unlock all Locked nodes (REVEAL_MAP shop upgrade)
 
     int startNode() const { return 0; }
 
 private:
     std::vector<Node> m_nodes;
-    void buildDungeon();
+    void buildWorld0();  // SECTOR ALPHA — entry zone, Manticore boss
+    void buildWorld1();  // DEEP NET     — hostile territory, Archon boss
+    void buildWorld2();  // THE CORE     — final zone, Vortex boss
 };

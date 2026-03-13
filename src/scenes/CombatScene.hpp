@@ -33,6 +33,7 @@ struct NodeConfig {
     float         traceTickRate  = 3.0f;
     bool          endless        = false;
     int           endlessWave    = 0;
+    float         startTrace     = 0.f;  // carry trace forward in endless mode
 };
 
 class CombatScene : public IScene {
@@ -84,8 +85,13 @@ private:
     float m_shakeTimer     = 0.f;  // screen shake duration
     float m_shakeDuration  = 0.f;  // original duration for intensity decay
 
-    float m_empTimer     = 0.f;
-    float m_stealthTimer = 0.f;
+    float m_empTimer       = 0.f;
+    float m_stealthTimer   = 0.f;
+    float m_overclockTimer = 0.f;  // OVERCLOCK: cooldown halved while > 0
+    float m_baseCdMult     = 1.f;  // computed at node entry; halved by OVERCLOCK
+    float m_decoyTimer     = 0.f;  // CLONE: decoy active duration
+    Vec2  m_decoyPos       = {};   // CLONE: decoy world-space position
+    int   m_scatterCount   = 0;    // SCATTER_CORE: shot counter (splits on 4th)
 
     struct InputState {
         bool thrustForward = false;

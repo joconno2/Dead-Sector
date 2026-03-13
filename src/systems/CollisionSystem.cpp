@@ -5,6 +5,7 @@
 #include "entities/HunterICE.hpp"
 #include "entities/SentryICE.hpp"
 #include "entities/SpawnerICE.hpp"
+#include "core/Constants.hpp"
 
 bool CollisionSystem::circlesOverlap(const Entity& a, const Entity& b) {
     float dx   = a.pos.x - b.pos.x;
@@ -95,6 +96,21 @@ void CollisionSystem::update(
     if (checkAvatarVsICE(*avatar, hunters))  return;
     if (checkAvatarVsICE(*avatar, sentries)) return;
     if (checkAvatarVsICE(*avatar, spawners)) return;
+
+    // Player projectiles vs avatar (friendly fire)
+    // Skip projectiles younger than 150ms (just fired, still overlapping spawn point)
+    for (auto& proj : projectiles) {
+        if (!proj->alive || !avatar->alive) continue;
+        if (proj->lifetime > Constants::PROJ_LIFETIME - 0.15f) continue;
+        if (circlesOverlap(*proj, *avatar)) {
+            CollisionEvent ev;
+            ev.type      = CollisionEvent::Type::ProjectileHitAvatar;
+            ev.projectile = proj.get();
+            ev.avatar    = avatar;
+            m_callback(ev);
+            return;
+        }
+    }
 
     // Enemy projectiles vs avatar
     for (auto& ep : enemyProjectiles) {

@@ -15,28 +15,32 @@ AISystem::Result AISystem::update(
     std::vector<std::unique_ptr<HunterICE>>&  hunters,
     std::vector<std::unique_ptr<SentryICE>>&  sentries,
     std::vector<std::unique_ptr<SpawnerICE>>& spawners,
-    const Avatar* avatar)
+    const Avatar* avatar,
+    AIConfig cfg)
 {
     Result out;
     if (!avatar || !avatar->alive) return out;
 
-    for (auto& h  : hunters)  if (h->alive)  updateHunter (dt, *h,  *avatar);
-    for (auto& s  : sentries) if (s->alive)  updateSentry (dt, *s,  *avatar, out);
-    for (auto& sp : spawners) if (sp->alive) updateSpawner(dt, *sp,          out);
+    // Hunters target the decoy when CLONE is active, otherwise avatar
+    Vec2 hunterTarget = cfg.decoyActive ? cfg.decoyPos : avatar->pos;
+
+    for (auto& h  : hunters)  if (h->alive)  updateHunter (dt, *h, hunterTarget);
+    for (auto& s  : sentries) if (s->alive)  updateSentry (dt, *s, *avatar, out, cfg.sentryFireRateMult);
+    for (auto& sp : spawners) if (sp->alive) updateSpawner(dt, *sp, out);
 
     return out;
 }
 
 // ---------------------------------------------------------------------------
-// Hunter — accelerates toward the player and rotates to match velocity
+// Hunter — accelerates toward target position (avatar or decoy)
 // ---------------------------------------------------------------------------
 
-void AISystem::updateHunter(float dt, HunterICE& h, const Avatar& av) {
-    Vec2  toPlayer = av.pos - h.pos;
-    float dist     = toPlayer.length();
+void AISystem::updateHunter(float dt, HunterICE& h, Vec2 targetPos) {
+    Vec2  toTarget = targetPos - h.pos;
+    float dist     = toTarget.length();
     if (dist < 0.001f) return;
 
-    Vec2 dir = toPlayer * (1.f / dist);
+    Vec2 dir = toTarget * (1.f / dist);
     h.vel += dir * (Constants::HUNTER_ACCEL * dt);
 
     float spd = h.vel.length();
@@ -48,25 +52,24 @@ void AISystem::updateHunter(float dt, HunterICE& h, const Avatar& av) {
 // Sentry — rotates to aim at player, fires when cooldown expires
 // ---------------------------------------------------------------------------
 
-void AISystem::updateSentry(float dt, SentryICE& s, const Avatar& av, Result& out) {
-    // Rotate toward player
+void AISystem::updateSentry(float dt, SentryICE& s, const Avatar& av, Result& out,
+                             float fireRateMult) {
     Vec2  toPlayer    = av.pos - s.pos;
     float targetAngle = std::atan2(toPlayer.x, -toPlayer.y);
 
     float diff = targetAngle - s.angle;
-    // Wrap to [-π, π]
     while (diff >  3.14159265f) diff -= 6.28318530f;
     while (diff < -3.14159265f) diff += 6.28318530f;
 
     float step = Constants::SENTRY_ROT_SPEED * dt;
     s.angle += (std::abs(diff) < step) ? diff : std::copysign(step, diff);
 
-    // Fire cooldown — 3-way burst spread
+    // fire rate multiplier >1 = slower (SIGNAL_JAM: 1.667)
     s.fireCooldown -= dt;
     if (s.fireCooldown <= 0.f) {
-        s.fireCooldown = Constants::SENTRY_FIRE_RATE;
+        s.fireCooldown = Constants::SENTRY_FIRE_RATE * fireRateMult;
 
-        constexpr float SPREAD = 0.30f; // ~17 degrees per side
+        constexpr float SPREAD = 0.30f;
         for (int k = -1; k <= 1; ++k) {
             float a       = s.angle + k * SPREAD;
             Vec2  heading = Vec2::fromAngle(a);
@@ -78,7 +81,7 @@ void AISystem::updateSentry(float dt, SentryICE& s, const Avatar& av, Result& ou
 }
 
 // ---------------------------------------------------------------------------
-// Spawner — periodically creates Hunter ICE programs
+// Spawner — periodically creates Hunter ICE
 // ---------------------------------------------------------------------------
 
 void AISystem::updateSpawner(float dt, SpawnerICE& sp, Result& out) {
@@ -88,8 +91,8 @@ void AISystem::updateSpawner(float dt, SpawnerICE& sp, Result& out) {
         ++sp.spawnedCount;
 
         std::uniform_real_distribution<float> angleDist(0.f, 6.2831853f);
-        float a       = angleDist(s_rng);
-        Vec2  dir     = { std::cos(a), std::sin(a) };
+        float a        = angleDist(s_rng);
+        Vec2  dir      = { std::cos(a), std::sin(a) };
         Vec2  spawnPos = sp.pos + dir * (sp.radius + 10.f);
         Vec2  vel      = dir * (Constants::HUNTER_MAX_SPEED * 0.45f);
 

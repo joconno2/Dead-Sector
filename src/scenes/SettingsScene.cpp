@@ -230,8 +230,9 @@ void SettingsScene::render(SceneContext& ctx) {
     }
 
     SDL_Color hintCol = { 60, 100, 80, 160 };
-    ctx.hud->drawLabel("L/R: adjust  |  UP/DOWN: navigate  |  ESC: save & back",
-                       panelX+16, panelY+panelH-24, hintCol);
+    std::string hint = "L/R: adjust   UP/DOWN: navigate   ESC: save & back";
+    int hintW = ctx.hud->measureText(hint);
+    ctx.hud->drawLabel(hint, panelX + panelW/2 - hintW/2, panelY+panelH-24, hintCol);
 
     SDL_RenderPresent(r);
 }
