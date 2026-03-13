@@ -144,6 +144,13 @@ void LoadoutScene::toggleSelect(SceneContext& ctx) {
 void LoadoutScene::confirm(SceneContext& ctx) {
     if ((int)m_picks.size() < PICKS) return;
 
+    // Commit selected programs immediately so the build chart shows them
+    // during the StartingUpgrade phase (and before combat launch).
+    if (ctx.programs && ctx.programs->count() == 0) {
+        for (int i = 0; i < PICKS; ++i)
+            ctx.programs->add(m_pool[m_picks[i]]);
+    }
+
     if (ctx.mods && ctx.mods->all().empty()) {
         m_modOffered = ctx.mods->buildOfferPool(MOD_OFFERS, !ctx.mods->passiveFull());
         m_modCursor  = 0;
@@ -161,10 +168,6 @@ void LoadoutScene::pickStartingMod(SceneContext& ctx) {
 }
 
 void LoadoutScene::launchCombat(SceneContext& ctx) {
-    if (ctx.programs) {
-        for (int i = 0; i < PICKS && i < (int)m_picks.size(); ++i)
-            ctx.programs->add(m_pool[m_picks[i]]);
-    }
     ctx.scenes->replace(std::make_unique<CombatScene>(m_cfg));
 }
 

@@ -142,8 +142,6 @@ void Game::run() {
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) m_running = false;
-            if (ev.type == SDL_KEYDOWN &&
-                ev.key.keysym.scancode == SDL_SCANCODE_ESCAPE) m_running = false;
 
             // Controller hot-plug
             if (ev.type == SDL_CONTROLLERDEVICEADDED && !m_controller) {

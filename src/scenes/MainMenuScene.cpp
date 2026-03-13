@@ -98,9 +98,10 @@ void MainMenuScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
 
     if (ev.type == SDL_KEYDOWN) {
         const auto sc = ev.key.keysym.scancode;
-        if      (sc == SDL_SCANCODE_UP   || sc == SDL_SCANCODE_W) move(-1);
-        else if (sc == SDL_SCANCODE_DOWN || sc == SDL_SCANCODE_S) move(+1);
+        if      (sc == SDL_SCANCODE_UP     || sc == SDL_SCANCODE_W) move(-1);
+        else if (sc == SDL_SCANCODE_DOWN   || sc == SDL_SCANCODE_S) move(+1);
         else if (sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_SPACE) selectCurrent(ctx);
+        else if (sc == SDL_SCANCODE_ESCAPE) { if (ctx.running) *ctx.running = false; }
     } else if (ev.type == SDL_CONTROLLERBUTTONDOWN) {
         const auto btn = ev.cbutton.button;
         if      (btn == SDL_CONTROLLER_BUTTON_DPAD_UP)   move(-1);
@@ -307,7 +308,7 @@ void MainMenuScene::render(SceneContext& ctx) {
     }
 
     // Version / build info
-    ctx.hud->drawLabel("v0.1  ARROW KEYS/DPAD: NAV  ENTER/A: SELECT",
+    ctx.hud->drawLabel((std::string(Constants::VERSION) + "  ARROW KEYS/DPAD: NAV  ENTER/A: SELECT").c_str(),
                        Constants::SCREEN_W / 2 - 220,
                        Constants::SCREEN_H - 28,
                        {40, 70, 60, 140});

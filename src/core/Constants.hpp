@@ -3,6 +3,9 @@
 
 namespace Constants {
 
+    // Build version
+    constexpr const char* VERSION = "v0.2.2";
+
     // Window
     constexpr int   SCREEN_W  = 1280;
     constexpr int   SCREEN_H  = 720;
