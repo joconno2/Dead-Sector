@@ -91,8 +91,9 @@ void VectorRenderer::drawGlitch(float intensity, Uint32 tick) {
 }
 
 void VectorRenderer::drawCRTOverlay() {
-    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 30);
-    for (int y = 0; y < Constants::SCREEN_H; y += 2) {
+    // Subtle scanlines: every 4 pixels, low alpha — just a hint of CRT texture
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 14);
+    for (int y = 0; y < Constants::SCREEN_H; y += 4) {
         SDL_RenderDrawLine(m_renderer, 0, y, Constants::SCREEN_W, y);
     }
 }

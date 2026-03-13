@@ -14,6 +14,7 @@
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include <iostream>
+#include <string>
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -22,7 +23,7 @@
 Game::Game()  = default;
 Game::~Game() = default;
 
-bool Game::init() {
+bool Game::init(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
         std::cerr << "SDL_Init error: " << SDL_GetError() << "\n";
         return false;
@@ -97,11 +98,33 @@ bool Game::init() {
         m_audio->setSfxVolume(  m_saveData.sfxVolume   * MIX_MAX_VOLUME / 100);
     }
 
+    // Command-line display overrides (do NOT write back to save — recovery only)
+    // Usage: --windowed  --fullscreen  --borderless  --res 1280x720
+    int  overrideMode = -1;   // -1 = no override
+    int  overrideW    = m_saveData.windowedWidth;
+    int  overrideH    = m_saveData.windowedHeight;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if      (arg == "--windowed")    overrideMode = DISP_WINDOWED;
+        else if (arg == "--fullscreen")  overrideMode = DISP_FULLSCREEN;
+        else if (arg == "--borderless")  overrideMode = DISP_BORDERLESS;
+        else if (arg == "--res" && i + 1 < argc) {
+            std::string res = argv[++i];
+            auto sep = res.find('x');
+            if (sep != std::string::npos) {
+                try {
+                    overrideW = std::stoi(res.substr(0, sep));
+                    overrideH = std::stoi(res.substr(sep + 1));
+                } catch (...) {}
+            }
+        }
+    }
+    int  applyMode = (overrideMode >= 0) ? overrideMode : m_saveData.displayMode;
+    int  applyW    = overrideW;
+    int  applyH    = overrideH;
+
     // Apply saved display mode on every launch (handles fullscreen/borderless/windowed)
-    applyDisplaySettings(m_window, m_renderer,
-        m_saveData.displayMode,
-        m_saveData.windowedWidth,
-        m_saveData.windowedHeight);
+    applyDisplaySettings(m_window, m_renderer, applyMode, applyW, applyH);
 
     m_scenes->start(std::make_unique<MainMenuScene>(), m_ctx);
     return true;

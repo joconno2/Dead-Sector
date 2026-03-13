@@ -2,6 +2,9 @@
 #include "entities/HunterICE.hpp"
 #include "entities/SentryICE.hpp"
 #include "entities/SpawnerICE.hpp"
+#include "entities/PhantomICE.hpp"
+#include "entities/LeechICE.hpp"
+#include "entities/MirrorICE.hpp"
 #include "math/Vec2.hpp"
 #include <memory>
 #include <vector>
@@ -13,6 +16,9 @@ public:
         std::vector<std::unique_ptr<HunterICE>>     hunters;
         std::vector<std::unique_ptr<SentryICE>>     sentries;
         std::vector<std::unique_ptr<SpawnerICE>>    spawnerICE;
+        std::vector<std::unique_ptr<PhantomICE>>    phantoms;
+        std::vector<std::unique_ptr<LeechICE>>      leeches;
+        std::vector<std::unique_ptr<MirrorICE>>     mirrors;
     };
 
     SpawnManager();

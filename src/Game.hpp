@@ -18,7 +18,7 @@ public:
     Game();
     ~Game();
 
-    bool init();
+    bool init(int argc = 0, char* argv[] = nullptr);
     void run();
     void shutdown();
 

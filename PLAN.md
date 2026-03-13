@@ -50,19 +50,19 @@ Target: Steam Early Access release
 - **OVERLOAD COIL** (Weapon/Offense) — shots deal +50% damage to Spawners
 
 ### More ICE Types
-- **Phantom ICE** — invisible until within 120px; blinks visible before firing
-- **Leech ICE** — attaches to avatar; doesn't damage but accelerates trace gain
-- **Mirror ICE** — reflects projectiles back at the player
+- [x] **Phantom ICE** — invisible until within 120px; blinks visible before firing
+- [x] **Leech ICE** — attaches to avatar; doesn't damage but accelerates trace gain
+- [x] **Mirror ICE** — reflects projectiles back at the player
 
 ---
 
 ## Gameplay Improvements
 
 ### Difficulty & Balance
-- [ ] **Difficulty selector** on run start (Runner / Decker / Netrunner) — scales trace tick rate, ICE health, spawn intervals
-- [ ] **Boss phase 2** — boss transitions at 50% health to a second attack pattern
+- [x] **Difficulty selector** on run start (Runner / Decker / Netrunner) — scales trace tick rate, ICE health, spawn intervals
+- [x] **Boss phase 2** — boss transitions at 50% health to a second attack pattern
 - [ ] **Credit economy tuning** — playtesting data needed; shop prices likely need adjustment
-- [ ] **Endless mode scaling** — after wave 10, introduce Phantom and Leech ICE; boss every 5 waves
+- [x] **Endless mode scaling** — after wave 10, introduce Phantom and Leech ICE; boss every 5 waves
 
 ### Meta Progression
 - [ ] **Persistent skill tree** — spend credits on passive buffs (starting ammo +5, trace tick -5%, etc.) outside the shop

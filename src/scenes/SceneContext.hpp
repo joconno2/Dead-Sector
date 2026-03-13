@@ -36,12 +36,20 @@ struct SceneContext {
     // Multi-world run state
     int                 currentWorld = 0;  // 0=SECTOR ALPHA, 1=DEEP NET, 2=THE CORE
 
+    // Difficulty (set in DifficultyScene, applied by CombatScene/TraceSystem)
+    // 0=Runner (easy), 1=Decker (normal), 2=Netrunner (hard)
+    int                 difficulty   = 1;
+
     // Endless mode
     bool                endlessMode = false;
     int                 endlessWave = 0;
 
     // Debug
     bool                debugInvincible = false;
+
+    // Effects applied by Event nodes; consumed by the next CombatScene or MapScene jackIn
+    float nextNodeStartTrace = 0.f;  // extra starting trace for next combat node
+    int   bonusLives         = 0;    // extra lives granted for next combat node
 
     // Thematic credit bonuses accumulated during the run
     struct BonusEvent { std::string name; int amount; };

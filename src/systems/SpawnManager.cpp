@@ -1,4 +1,7 @@
 #include "SpawnManager.hpp"
+#include "entities/PhantomICE.hpp"
+#include "entities/LeechICE.hpp"
+#include "entities/MirrorICE.hpp"
 #include "core/Constants.hpp"
 #include <cmath>
 #include <algorithm>
@@ -34,7 +37,10 @@ SpawnManager::Batch SpawnManager::update(float dt, float tracePct, int currentCo
         int total = currentCount
                   + (int)out.hunters.size()
                   + (int)out.sentries.size()
-                  + (int)out.spawnerICE.size();
+                  + (int)out.spawnerICE.size()
+                  + (int)out.phantoms.size()
+                  + (int)out.leeches.size()
+                  + (int)out.mirrors.size();
         if (total < Constants::SPAWN_MAX_ENTITIES)
             spawnOne(tracePct, out);
     }
@@ -49,16 +55,25 @@ void SpawnManager::spawnOne(float tracePct, Batch& out) {
     int roll = d(m_rng);
 
     if (tracePct >= 75.f) {
-        // 35% Hunter, 40% Sentry, 25% Spawner
-        if (roll < 35) {
+        // 18% Hunter, 22% Sentry, 18% Spawner, 17% Phantom, 12% Leech, 13% Mirror
+        if (roll < 18) {
             out.hunters.push_back(std::make_unique<HunterICE>(
                 spawnPos, velTowardCenter(spawnPos, Constants::HUNTER_MAX_SPEED * 0.7f)));
-        } else if (roll < 75) {
+        } else if (roll < 40) {
             out.sentries.push_back(std::make_unique<SentryICE>(
                 spawnPos, velTowardCenter(spawnPos, 35.f)));
-        } else {
+        } else if (roll < 58) {
             out.spawnerICE.push_back(std::make_unique<SpawnerICE>(
                 spawnPos, velTowardCenter(spawnPos, 25.f)));
+        } else if (roll < 75) {
+            out.phantoms.push_back(std::make_unique<PhantomICE>(
+                spawnPos, velTowardCenter(spawnPos, 40.f)));
+        } else if (roll < 87) {
+            out.leeches.push_back(std::make_unique<LeechICE>(
+                spawnPos, velTowardCenter(spawnPos, Constants::HUNTER_MAX_SPEED * 0.5f)));
+        } else {
+            out.mirrors.push_back(std::make_unique<MirrorICE>(
+                spawnPos, velTowardCenter(spawnPos, Constants::HUNTER_MAX_SPEED * 0.3f)));
         }
     } else if (tracePct >= 50.f) {
         // 50% Hunter, 50% Sentry

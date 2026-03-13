@@ -20,10 +20,8 @@
 
 bool ShipSelectScene::isUnlocked(int idx, const SaveData& save) const {
     HullStats s = statsForHull(HULL_ORDER[idx]);
-    if (s.runsRequired  > 0 && save.totalRuns  < s.runsRequired)  return false;
-    if (s.killsRequired > 0 && save.totalKills < s.killsRequired)  return false;
-    if (s.needsWin      && save.goldenHulls.empty())               return false;
-    return true;
+    if (s.id == std::string("DELTA")) return true;  // starter hull always available
+    return save.hasPurchase(std::string("HULL_") + s.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -252,19 +250,10 @@ void ShipSelectScene::render(SceneContext& ctx) {
 
     if (locked) {
         // Show unlock requirement
-        SDL_Color reqCol = { 180, 60, 60, 220 };
-        ctx.hud->drawLabel("UNLOCK REQUIREMENTS:", tx, ty, reqCol); ty += 22;
-        if (sel.runsRequired  > 0) {
-            std::string s = "  RUNS COMPLETED:  " + std::to_string(sel.runsRequired);
-            ctx.hud->drawLabel(s.c_str(), tx, ty, reqCol); ty += 20;
-        }
-        if (sel.killsRequired > 0) {
-            std::string s = "  TOTAL ICE KILLS: " + std::to_string(sel.killsRequired);
-            ctx.hud->drawLabel(s.c_str(), tx, ty, reqCol); ty += 20;
-        }
-        if (sel.needsWin) {
-            ctx.hud->drawLabel("  COMPLETE A RUN (BOSS KILL)", tx, ty, reqCol); ty += 20;
-        }
+        SDL_Color reqCol  = { 180, 60, 60, 220 };
+        SDL_Color shopCol = { 80, 160, 220, 220 };
+        ctx.hud->drawLabel("[ LOCKED ]", tx, ty, reqCol); ty += 22;
+        ctx.hud->drawLabel("Purchase this hull in the SHOP to unlock.", tx, ty, shopCol); ty += 20;
     } else {
         ctx.hud->drawLabel(("SPEED:      " + pct(sel.speedMult)).c_str(),    tx,       ty, sel.speedMult    >= 1.f ? valCol : statCol);
         ctx.hud->drawLabel(("THRUST:     " + pct(sel.thrustMult)).c_str(),   tx + 210, ty, sel.thrustMult   >= 1.f ? valCol : statCol);

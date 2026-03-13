@@ -4,9 +4,9 @@
 #include <cstdlib>
 #include <iostream>
 
-int main(int /*argc*/, char* /*argv*/[]) {
+int main(int argc, char* argv[]) {
     Game game;
-    if (!game.init()) {
+    if (!game.init(argc, argv)) {
         std::cerr << "Failed to initialize Dead Sector\n";
         return EXIT_FAILURE;
     }

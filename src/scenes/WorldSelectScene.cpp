@@ -1,5 +1,5 @@
 #include "WorldSelectScene.hpp"
-#include "ShipSelectScene.hpp"
+#include "DifficultyScene.hpp"
 #include "MainMenuScene.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
@@ -62,7 +62,7 @@ void WorldSelectScene::confirm(SceneContext& ctx) {
     if (m_cursor >= m_unlocked) return;  // locked world
     ctx.currentWorld = m_cursor;
     if (ctx.nodeMap) ctx.nodeMap->reset(ctx.currentWorld);
-    ctx.scenes->replace(std::make_unique<ShipSelectScene>());
+    ctx.scenes->replace(std::make_unique<DifficultyScene>());
 }
 
 void WorldSelectScene::update(float dt, SceneContext&) {

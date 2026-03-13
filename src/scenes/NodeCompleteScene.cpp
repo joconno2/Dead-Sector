@@ -22,7 +22,7 @@
 // ---------------------------------------------------------------------------
 static constexpr int CARDS     = 3;
 static constexpr int CARD_W    = 260;
-static constexpr int CARD_H    = 175;
+static constexpr int CARD_H    = 230;
 static constexpr int CARD_PAD  = 20;
 static constexpr int CARD_TOT  = CARDS * CARD_W + (CARDS - 1) * CARD_PAD;
 static constexpr int CARD_X0   = (Constants::SCREEN_W - CARD_TOT) / 2;
@@ -403,32 +403,36 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
     SDL_Color descCol   = { 160, 180, 170, 200 };
     SDL_Color rarityCol = { rr, rg, rb, nameAlpha };
 
+    // Fixed bottom zones: rarity at -48, confirm at -28
+    const int rarityY  = cy + CARD_H - 48;
+    const int confirmY = cy + CARD_H - 28;
+
     if (card.kind == UpgradeCard::Kind::Program) {
         const ProgramDef& def = getProgramDef(card.progId);
         std::string cdStr = "CD: " + std::to_string((int)def.cooldown) + "s";
-        ctx.hud->drawLabel(typeLabel,  cx+10, cy+14, typeCol);
-        ctx.hud->drawLabel(def.name,   cx+10, cy+46, nameCol);
-        ctx.hud->drawWrapped(def.desc, cx+10, cy+78, CARD_W - 20, descCol, 20);
-        ctx.hud->drawLabel(cdStr,      cx+10, cy+120, descCol);
+        ctx.hud->drawLabel(typeLabel, cx+10, cy+14, typeCol);
+        ctx.hud->drawLabel(def.name,  cx+10, cy+44, nameCol);
+        int lines = ctx.hud->drawWrapped(def.desc, cx+10, cy+74, CARD_W - 20, descCol, 20);
+        int cdY = std::min(cy + 74 + lines * 20 + 6, rarityY - 22);
+        ctx.hud->drawLabel(cdStr, cx+10, cdY, descCol);
 
-        // Rarity
         const char* rname = "";
         switch (def.rarity) {
             case ProgramRarity::Common:   rname = "COMMON";   break;
             case ProgramRarity::Uncommon: rname = "UNCOMMON"; break;
             case ProgramRarity::Rare:     rname = "RARE";     break;
         }
-        ctx.hud->drawLabel(rname, cx+10, cy+CARD_H-50, rarityCol);
+        ctx.hud->drawLabel(rname, cx+10, rarityY, rarityCol);
     } else {
         const ModDef& def = getModDef(card.modId);
-        ctx.hud->drawLabel(typeLabel,              cx+10, cy+14,       typeCol);
-        ctx.hud->drawLabel(def.name,               cx+10, cy+46,       nameCol);
-        ctx.hud->drawWrapped(def.desc,             cx+10, cy+78,       CARD_W - 20, descCol, 20);
-        ctx.hud->drawLabel(rarityName(def.rarity), cx+10, cy+CARD_H-50, rarityCol);
+        ctx.hud->drawLabel(typeLabel,              cx+10, cy+14,    typeCol);
+        ctx.hud->drawLabel(def.name,               cx+10, cy+44,    nameCol);
+        ctx.hud->drawWrapped(def.desc,             cx+10, cy+74,    CARD_W - 20, descCol, 20);
+        ctx.hud->drawLabel(rarityName(def.rarity), cx+10, rarityY,  rarityCol);
     }
 
     if (selected) {
         SDL_Color hint = { rr, rg, rb, 200 };
-        ctx.hud->drawLabel("[ CONFIRM ]", cx+10, cy+CARD_H-30, hint);
+        ctx.hud->drawLabel("[ CONFIRM ]", cx+10, confirmY, hint);
     }
 }

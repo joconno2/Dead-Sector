@@ -9,6 +9,9 @@ class EnemyProjectile;
 class HunterICE;
 class SentryICE;
 class SpawnerICE;
+class PhantomICE;
+class LeechICE;
+class MirrorICE;
 class Entity;
 
 struct CollisionEvent {
@@ -37,6 +40,9 @@ public:
         std::vector<std::unique_ptr<HunterICE>>&       hunters,
         std::vector<std::unique_ptr<SentryICE>>&       sentries,
         std::vector<std::unique_ptr<SpawnerICE>>&      spawners,
+        std::vector<std::unique_ptr<PhantomICE>>&      phantoms,
+        std::vector<std::unique_ptr<LeechICE>>&        leeches,
+        std::vector<std::unique_ptr<MirrorICE>>&       mirrors,
         std::vector<std::unique_ptr<EnemyProjectile>>& enemyProjectiles
     );
 

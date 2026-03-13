@@ -18,8 +18,12 @@ class AudioSystem;
 #include "entities/HunterICE.hpp"
 #include "entities/SentryICE.hpp"
 #include "entities/SpawnerICE.hpp"
+#include "entities/PhantomICE.hpp"
+#include "entities/LeechICE.hpp"
+#include "entities/MirrorICE.hpp"
 #include "entities/EnemyProjectile.hpp"
 #include "entities/PulseMine.hpp"
+#include "entities/DataPacket.hpp"
 #include "math/Vec2.hpp"
 #include <memory>
 #include <vector>
@@ -30,6 +34,7 @@ struct NodeConfig {
     NodeObjective objective      = NodeObjective::Sweep;
     int           sweepTarget    = 6;
     float         surviveSeconds = 30.f;
+    int           extractTarget  = 8;   // data packets to collect (Extract objective)
     float         traceTickRate  = 3.0f;
     bool          endless        = false;
     int           endlessWave    = 0;
@@ -64,8 +69,12 @@ private:
     std::vector<std::unique_ptr<HunterICE>>       m_hunters;
     std::vector<std::unique_ptr<SentryICE>>       m_sentries;
     std::vector<std::unique_ptr<SpawnerICE>>      m_spawnerICE;
+    std::vector<std::unique_ptr<PhantomICE>>      m_phantoms;
+    std::vector<std::unique_ptr<LeechICE>>        m_leeches;
+    std::vector<std::unique_ptr<MirrorICE>>       m_mirrors;
     std::vector<std::unique_ptr<EnemyProjectile>> m_enemyProjectiles;
     std::vector<std::unique_ptr<PulseMine>>       m_mines;
+    std::vector<DataPacket>                       m_dataPackets;
 
     std::vector<std::unique_ptr<HunterICE>>  m_pendingHunters;
     std::vector<std::unique_ptr<Projectile>> m_pendingProjectiles;
@@ -75,15 +84,21 @@ private:
     int   m_score            = 0;
     float m_scoreMult        = 1.f;
     int   m_iceKilled        = 0;
+    int   m_packetsCollected = 0;
     float m_surviveTimer     = 0.f;
     bool  m_complete         = false;
     bool  m_firePrev         = false;
     int   m_shotCount        = 0;
     int   m_lastUpgradeKills = 0;
 
-    float m_bossDeathTimer = 0.f;  // real-time countdown → NodeComplete transition
+    float m_bossDeathTimer  = 0.f;  // real-time countdown → NodeComplete transition
+    float m_bossPhaseTimer  = 0.f;  // >0 while phase 2 warning is showing
     float m_shakeTimer     = 0.f;  // screen shake duration
     float m_shakeDuration  = 0.f;  // original duration for intensity decay
+    float m_thresholdFlash = 0.f;  // 0..1 → fades out, triggers full-screen color pulse
+    int   m_thresholdFlashPct = 0; // which threshold was just crossed (25/50/75/100)
+    float m_deathTimer     = -1.f; // >0 while waiting to transition to GameOverScene
+    Vec2  m_deathPos       = {};   // avatar position at time of death
 
     float m_empTimer       = 0.f;
     float m_stealthTimer   = 0.f;

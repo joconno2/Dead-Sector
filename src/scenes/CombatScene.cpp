@@ -63,16 +63,22 @@ void CombatScene::onEnter(SceneContext& ctx) {
     setupCollisionCallback(ctx);
     resetGame(ctx);
 
-    // Extra lives: mods + shop EXTRA_LIFE stacks
+    // Extra lives: mods + shop EXTRA_LIFE stacks + Event node bonus
     if (m_avatar) {
         int lives = ctx.mods ? ctx.mods->startingExtraLives() : 0;
         if (ctx.saveData) lives += ctx.saveData->purchaseCount("EXTRA_LIFE");
+        lives += ctx.bonusLives;
+        ctx.bonusLives = 0;
         m_avatar->extraLives += lives; // hull base lives already set in resetGame
     }
 
-    // Trace tick rate: base × TRACE_SLOW shop stacks × Ghost Protocol mod
+    // Trace tick rate: base × difficulty × TRACE_SLOW shop stacks × Ghost Protocol mod
     {
         float tickRate = m_config.traceTickRate;
+        // Difficulty multiplier: 0=Runner(0.65), 1=Decker(1.0), 2=Netrunner(1.6)
+        static const float DIFF_MULT[3] = { 0.65f, 1.0f, 1.6f };
+        int diff = std::max(0, std::min(2, ctx.difficulty));
+        tickRate *= DIFF_MULT[diff];
         if (ctx.saveData) {
             int stacks = ctx.saveData->purchaseCount("TRACE_SLOW");
             for (int i = 0; i < stacks; ++i) tickRate *= 0.90f;
@@ -81,9 +87,11 @@ void CombatScene::onEnter(SceneContext& ctx) {
         m_trace.setTickRate(tickRate);
     }
 
-    // Threshold alarm SFX
-    m_trace.setThresholdCallback([this](int /*pct*/) {
+    // Threshold alarm SFX + flash
+    m_trace.setThresholdCallback([this](int pct) {
         if (m_audio) m_audio->playThreshold();
+        m_thresholdFlash    = 1.f;
+        m_thresholdFlashPct = pct;
     });
 }
 
@@ -94,6 +102,9 @@ void CombatScene::onExit() {
     m_hunters.clear();
     m_sentries.clear();
     m_spawnerICE.clear();
+    m_phantoms.clear();
+    m_leeches.clear();
+    m_mirrors.clear();
     m_enemyProjectiles.clear();
     m_pendingHunters.clear();
     m_pendingProjectiles.clear();
@@ -124,6 +135,16 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             ev.iceEntity->alive = false;
             m_score += static_cast<int>(ev.iceEntity->scoreValue() * m_scoreMult);
             m_iceKilled++;
+            if (m_config.objective == NodeObjective::Extract) {
+                static thread_local std::mt19937 dropRng(std::random_device{}());
+                std::uniform_real_distribution<float> ang(0.f, 6.28318f);
+                std::uniform_real_distribution<float> spd(20.f, 60.f);
+                float a = ang(dropRng);
+                DataPacket dp;
+                dp.pos = killPos;
+                dp.vel = { std::cos(a) * spd(dropRng), std::sin(a) * spd(dropRng) };
+                m_dataPackets.push_back(dp);
+            }
             if (m_audio) m_audio->playExplosion();
 
             if (mods) m_trace.add(-mods->traceSinkAmt());
@@ -151,7 +172,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                             if (d < best) { best = d; nearest = e.get(); }
                         }
                 };
-                checkNearest(m_hunters); checkNearest(m_sentries); checkNearest(m_spawnerICE);
+                checkNearest(m_hunters); checkNearest(m_sentries); checkNearest(m_spawnerICE); checkNearest(m_phantoms); checkNearest(m_leeches); checkNearest(m_mirrors);
                 if (nearest) {
                     Vec2 diff = (nearest->pos - killPos).normalized();
                     float a = std::atan2(diff.y, diff.x);
@@ -198,6 +219,9 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_hunters)   if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_sentries)  if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_spawnerICE)if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_phantoms)   if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_leeches)    if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_mirrors)    if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
             ev.avatar->alive    = false;
             ev.iceEntity->alive = false;
@@ -208,8 +232,15 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_hunters)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_sentries)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_spawnerICE) if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_phantoms)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_leeches)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_mirrors)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
-            scenes->replace(std::make_unique<GameOverScene>(m_score));
+            m_deathPos = ev.avatar->pos;
+            m_deathTimer = 0.65f;
+            m_shakeTimer = m_shakeDuration = 0.5f;
+            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
+            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
 
         } else if (ev.type == CollisionEvent::Type::EnemyProjectileHitAvatar) {
             if (!ev.avatar->alive || !ev.enemyProj->alive) return;
@@ -231,8 +262,15 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_hunters)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_sentries)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_spawnerICE) if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_phantoms)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_leeches)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_mirrors)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
-            scenes->replace(std::make_unique<GameOverScene>(m_score));
+            m_deathPos = ev.avatar->pos;
+            m_deathTimer = 0.65f;
+            m_shakeTimer = m_shakeDuration = 0.5f;
+            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
+            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
 
         } else if (ev.type == CollisionEvent::Type::ProjectileHitAvatar) {
             if (!ev.avatar->alive || !ev.projectile->alive) return;
@@ -257,8 +295,15 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_hunters)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_sentries)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 for (auto& e : m_spawnerICE) if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_phantoms)   if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_leeches)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+                for (auto& e : m_mirrors)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
-            scenes->replace(std::make_unique<GameOverScene>(m_score));
+            m_deathPos = ev.avatar->pos;
+            m_deathTimer = 0.65f;
+            m_shakeTimer = m_shakeDuration = 0.5f;
+            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
+            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
         }
     });
 }
@@ -266,6 +311,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
 void CombatScene::resetGame(SceneContext& ctx) {
     m_score             = 0;
     m_iceKilled         = 0;
+    m_packetsCollected  = 0;
     m_complete          = false;
     m_firePrev          = false;
     m_prog0Prev = m_prog1Prev = m_prog2Prev = false;
@@ -277,18 +323,25 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_surviveTimer      = m_config.surviveSeconds;
     m_lastUpgradeKills  = 0;
     m_bossDeathTimer    = 0.f;
+    m_bossPhaseTimer    = 0.f;
     m_shakeTimer        = 0.f;
     m_shakeDuration     = 0.f;
+    m_thresholdFlash    = 0.f;
+    m_deathTimer        = -1.f;
     m_boss.reset();
 
     m_projectiles.clear();
     m_hunters.clear();
     m_sentries.clear();
     m_spawnerICE.clear();
+    m_phantoms.clear();
+    m_leeches.clear();
+    m_mirrors.clear();
     m_enemyProjectiles.clear();
     m_pendingHunters.clear();
     m_pendingProjectiles.clear();
     m_mines.clear();
+    m_dataPackets.clear();
 
     m_particles.clear();
     m_fragments.clear();
@@ -332,6 +385,23 @@ void CombatScene::resetGame(SceneContext& ctx) {
             std::max(80.f, std::min(cy + std::sin(angle) * OFFSET, Constants::SCREEN_HF - 80.f))
         };
         m_boss = std::make_unique<BossEnemy>(type, bossPos);
+    }
+
+    // Endless mode: spawn a boss every 5 waves (waves 5, 10, 15…)
+    if (m_config.endless && m_config.endlessWave > 0 && m_config.endlessWave % 5 == 0) {
+        static thread_local std::mt19937 rng2(std::random_device{}());
+        // Cycle through the 3 boss types based on wave
+        BossType endlessBossType = static_cast<BossType>((m_config.endlessWave / 5 - 1) % 3);
+        std::uniform_real_distribution<float> aDist2(0.f, 6.28318f);
+        float angle2 = aDist2(rng2);
+        constexpr float OFFSET2 = 220.f;
+        const float cx2 = Constants::SCREEN_WF * 0.5f;
+        const float cy2 = Constants::SCREEN_HF * 0.5f;
+        Vec2 bossPos2 = {
+            std::max(80.f, std::min(cx2 + std::cos(angle2) * OFFSET2, Constants::SCREEN_WF - 80.f)),
+            std::max(80.f, std::min(cy2 + std::sin(angle2) * OFFSET2, Constants::SCREEN_HF - 80.f))
+        };
+        m_boss = std::make_unique<BossEnemy>(endlessBossType, bossPos2);
     }
 }
 
@@ -461,6 +531,17 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     if (m_complete) return;
     if (m_paused) { m_pauseTime += dt; return; }
 
+    // Avatar death animation timer
+    if (m_deathTimer > 0.f) {
+        m_deathTimer -= dt;
+        m_particles.update(dt);
+        m_fragments.update(dt);
+        if (m_shakeTimer > 0.f) m_shakeTimer -= dt;
+        if (m_deathTimer <= 0.f)
+            ctx.scenes->replace(std::make_unique<GameOverScene>(m_score));
+        return;
+    }
+
     // Real-time meta effects (shake, slow-mo, boss death transition)
     const float realDt = dt;
     if (m_shakeTimer > 0.f) m_shakeTimer -= realDt;
@@ -468,6 +549,11 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         m_bossDeathTimer -= realDt;
         dt *= 0.10f;   // slow-mo during boss death sequence
         if (m_bossDeathTimer <= 0.f) {
+            // Endless mode: boss was a bonus encounter — resume the wave, don't end
+            if (m_config.endless) {
+                m_boss.reset();
+                return;
+            }
             m_complete = true;
             ctx.runNodes++;
             if (ctx.currentWorld < 2) {
@@ -598,8 +684,10 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     m_prog2Prev = m_input.prog2;
 
     if (ctx.programs) ctx.programs->update(dt);
-    if (m_empTimer       > 0.f) m_empTimer       -= dt;
-    if (m_stealthTimer   > 0.f) m_stealthTimer   -= dt;
+    if (m_empTimer         > 0.f) m_empTimer         -= dt;
+    if (m_stealthTimer     > 0.f) m_stealthTimer     -= dt;
+    if (m_thresholdFlash   > 0.f) m_thresholdFlash   -= dt * 1.8f;
+    if (m_bossPhaseTimer   > 0.f) m_bossPhaseTimer   -= dt;
     if (m_overclockTimer > 0.f) {
         m_overclockTimer -= dt;
         if (ctx.programs) ctx.programs->setCooldownMultiplier(m_baseCdMult * 0.5f);
@@ -611,12 +699,16 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     // Physics
     std::vector<Entity*> all;
     all.reserve(1 + m_projectiles.size() + m_hunters.size()
-                  + m_sentries.size() + m_spawnerICE.size() + m_enemyProjectiles.size());
+                  + m_sentries.size() + m_spawnerICE.size() + m_phantoms.size() + m_leeches.size()
+                  + m_mirrors.size() + m_enemyProjectiles.size());
     if (m_avatar && m_avatar->alive) all.push_back(m_avatar.get());
     for (auto& p  : m_projectiles)      all.push_back(p.get());
     for (auto& h  : m_hunters)          all.push_back(h.get());
     for (auto& s  : m_sentries)         all.push_back(s.get());
     for (auto& sp : m_spawnerICE)       all.push_back(sp.get());
+    for (auto& ph : m_phantoms)         all.push_back(ph.get());
+    for (auto& lc : m_leeches)          all.push_back(lc.get());
+    for (auto& mi : m_mirrors)          all.push_back(mi.get());
     for (auto& ep : m_enemyProjectiles) all.push_back(ep.get());
     m_physics.update(dt, all);
 
@@ -650,6 +742,12 @@ void CombatScene::update(float dt, SceneContext& ctx) {
             if (s->alive)  m_walls.resolveCircle(s->pos,  s->vel,  s->radius,  0.75f);
         for (auto& sp : m_spawnerICE)
             if (sp->alive) m_walls.resolveCircle(sp->pos, sp->vel, sp->radius, 0.75f);
+        for (auto& ph : m_phantoms)
+            if (ph->alive) m_walls.resolveCircle(ph->pos, ph->vel, ph->radius, 0.75f);
+        for (auto& lc : m_leeches)
+            if (lc->alive && !lc->attached) m_walls.resolveCircle(lc->pos, lc->vel, lc->radius, 0.75f);
+        for (auto& mi : m_mirrors)
+            if (mi->alive) m_walls.resolveCircle(mi->pos, mi->vel, mi->radius, 0.75f);
     }
 
     // RICOCHET: bounce player projectiles off screen edges
@@ -662,11 +760,13 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         aiCfg.decoyPos           = m_decoyPos;
         aiCfg.sentryFireRateMult = ctx.mods ? ctx.mods->sentryFireRateMult() : 1.f;
 
-        auto aiResult = m_ai.update(dt, m_hunters, m_sentries, m_spawnerICE, m_avatar.get(), aiCfg);
+        auto aiResult = m_ai.update(dt, m_hunters, m_sentries, m_spawnerICE, m_phantoms, m_leeches, m_mirrors, m_avatar.get(), aiCfg);
         for (auto& ep : aiResult.firedProjectiles)
             m_enemyProjectiles.push_back(std::move(ep));
         for (auto& h : aiResult.spawnedHunters)
             m_pendingHunters.push_back(std::move(h));
+        // Leech trace drain
+        if (aiResult.leechTraceGain > 0.f) m_trace.add(aiResult.leechTraceGain);
     }
 
     // Pulse mines
@@ -708,19 +808,85 @@ void CombatScene::update(float dt, SceneContext& ctx) {
 
     if (m_stealthTimer <= 0.f) m_trace.update(dt);
 
-    int liveCount = (int)(m_hunters.size() + m_sentries.size() + m_spawnerICE.size());
-    auto batch = m_spawner.update(dt, m_trace.trace(), liveCount);
+    int liveCount = (int)(m_hunters.size() + m_sentries.size() + m_spawnerICE.size() + m_phantoms.size() + m_leeches.size() + m_mirrors.size());
+    // Endless wave 10+: ensure advanced ICE types (Phantom/Leech/Mirror) can spawn
+    float spawnTrace = m_trace.trace();
+    if (m_config.endless && m_config.endlessWave >= 10)
+        spawnTrace = std::max(spawnTrace, 75.f);
+    auto batch = m_spawner.update(dt, spawnTrace, liveCount);
     for (auto& h  : batch.hunters)    m_hunters.push_back(std::move(h));
     for (auto& s  : batch.sentries)   m_sentries.push_back(std::move(s));
     for (auto& sp : batch.spawnerICE) m_spawnerICE.push_back(std::move(sp));
+    for (auto& ph : batch.phantoms)   m_phantoms.push_back(std::move(ph));
+    for (auto& lc : batch.leeches)    m_leeches.push_back(std::move(lc));
+    for (auto& mi : batch.mirrors)    m_mirrors.push_back(std::move(mi));
 
     if (m_config.objective == NodeObjective::Survive) m_surviveTimer -= dt;
+
+    // Mirror ICE — reflect front-hit projectiles, take damage from rear hits
+    for (auto& mi : m_mirrors) {
+        if (!mi->alive) continue;
+        for (auto& p : m_projectiles) {
+            if (!p->alive) continue;
+            float dist = (p->pos - mi->pos).length();
+            if (dist >= mi->radius + p->radius) continue;
+            // Dot product: facing direction vs vector from mirror to projectile
+            // facingAngle points toward the player, so the face is at +facingAngle
+            Vec2 faceDir = { std::cos(mi->facingAngle), std::sin(mi->facingAngle) };
+            Vec2 toProj  = (p->pos - mi->pos).normalized();
+            float dot    = faceDir.x * toProj.x + faceDir.y * toProj.y;
+            if (dot > 0.f) {
+                // Front hit — reflect: bounce velocity off face normal
+                Vec2 norm   = faceDir;
+                float vDot  = p->vel.x * norm.x + p->vel.y * norm.y;
+                Vec2 reflVel = { p->vel.x - 2.f * vDot * norm.x,
+                                 p->vel.y - 2.f * vDot * norm.y };
+                p->alive = false;
+                auto ep = std::make_unique<EnemyProjectile>(p->pos, reflVel);
+                ep->lifetime = 2.0f;
+                m_enemyProjectiles.push_back(std::move(ep));
+                m_fragments.emit(p->pos, 200, 230, 255, 4, 8.f, 160.f);
+            } else {
+                // Rear hit — damage the mirror
+                p->alive  = false;
+                mi->alive = false;
+                m_score += static_cast<int>(mi->scoreValue() * m_scoreMult);
+                m_iceKilled++;
+                m_fragments.emit(mi->pos, 180, 220, 255, 8, 10.f, 200.f);
+            }
+        }
+    }
+
+    // DataPacket update — drift, slow down, despawn; collect if avatar overlaps
+    if (m_config.objective == NodeObjective::Extract) {
+        for (auto& dp : m_dataPackets) {
+            if (!dp.alive) continue;
+            dp.pos     += dp.vel * dt;
+            dp.vel     *= std::pow(0.1f, dt); // strong friction: halves ~every 0.3s
+            dp.lifetime -= dt;
+            if (dp.lifetime <= 0.f) { dp.alive = false; continue; }
+            // Avatar collection
+            if (m_avatar && m_avatar->alive) {
+                if ((dp.pos - m_avatar->pos).length() < m_avatar->radius + dp.radius + 8.f) {
+                    dp.alive = false;
+                    m_packetsCollected++;
+                    m_score += static_cast<int>(50.f * m_scoreMult);
+                    m_particles.emit(dp.pos, 80, 220, 180, 6);
+                }
+            }
+        }
+    }
 
     // Boss update + projectile collision
     if (m_boss && m_boss->alive) {
         Vec2 playerPos = m_avatar ? m_avatar->pos : Vec2{Constants::SCREEN_WF*0.5f, Constants::SCREEN_HF*0.5f};
         auto bResult = m_boss->update(dt, playerPos);
         for (auto& ep : bResult.fired) m_enemyProjectiles.push_back(std::move(ep));
+        if (bResult.phaseTransitioned) {
+            m_bossPhaseTimer = 2.8f;
+            m_shakeTimer     = 0.35f;
+            m_shakeDuration  = 0.35f;
+        }
 
         // Check player projectiles vs boss
         for (auto& p : m_projectiles) {
@@ -786,7 +952,11 @@ void CombatScene::updateMines(float dt, SceneContext& ctx) {
                     } else {
                         m_avatar->alive = false;
                         m_trace.onHit();
-                        ctx.scenes->replace(std::make_unique<GameOverScene>(m_score));
+                        m_deathPos = m_avatar->pos;
+                        m_deathTimer = 0.65f;
+                        m_shakeTimer = m_shakeDuration = 0.5f;
+                        m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
+                        m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
                         return;
                     }
                 }
@@ -801,7 +971,7 @@ void CombatScene::updateMines(float dt, SceneContext& ctx) {
                         m_iceKilled++;
                     }
             };
-            pulseDmg(m_hunters); pulseDmg(m_sentries); pulseDmg(m_spawnerICE);
+            pulseDmg(m_hunters); pulseDmg(m_sentries); pulseDmg(m_spawnerICE); pulseDmg(m_phantoms); pulseDmg(m_leeches); pulseDmg(m_mirrors);
         }
     }
 }
@@ -873,6 +1043,9 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
         for (auto& e : m_hunters)    if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
         for (auto& e : m_sentries)   if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
         for (auto& e : m_spawnerICE) if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+        for (auto& e : m_phantoms)   if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+        for (auto& e : m_leeches)    if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+        for (auto& e : m_mirrors)    if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
         break;
     }
     case ProgramID::CLONE: {
@@ -932,6 +1105,7 @@ void CombatScene::checkObjective(SceneContext& ctx) {
     case NodeObjective::Sweep:   done = (m_iceKilled >= m_config.sweepTarget); break;
     case NodeObjective::Boss:    return; // boss completion handled via m_bossDeathTimer
     case NodeObjective::Survive: done = (m_surviveTimer <= 0.f); break;
+    case NodeObjective::Extract: done = (m_packetsCollected >= m_config.extractTarget); break;
     }
     if (done) {
         m_complete = true;
@@ -947,7 +1121,7 @@ void CombatScene::checkObjective(SceneContext& ctx) {
 
 void CombatScene::handleCollisions() {
     m_collision.update(m_avatar.get(), m_projectiles,
-                       m_hunters, m_sentries, m_spawnerICE, m_enemyProjectiles);
+                       m_hunters, m_sentries, m_spawnerICE, m_phantoms, m_leeches, m_mirrors, m_enemyProjectiles);
 }
 
 void CombatScene::sweepDead() {
@@ -956,7 +1130,12 @@ void CombatScene::sweepDead() {
     m_hunters.erase(std::remove_if(m_hunters.begin(), m_hunters.end(), dead), m_hunters.end());
     m_sentries.erase(std::remove_if(m_sentries.begin(), m_sentries.end(), dead), m_sentries.end());
     m_spawnerICE.erase(std::remove_if(m_spawnerICE.begin(), m_spawnerICE.end(), dead), m_spawnerICE.end());
+    m_phantoms.erase(std::remove_if(m_phantoms.begin(), m_phantoms.end(), dead), m_phantoms.end());
+    m_leeches.erase(std::remove_if(m_leeches.begin(), m_leeches.end(), dead), m_leeches.end());
+    m_mirrors.erase(std::remove_if(m_mirrors.begin(), m_mirrors.end(), dead), m_mirrors.end());
     m_enemyProjectiles.erase(std::remove_if(m_enemyProjectiles.begin(), m_enemyProjectiles.end(), dead), m_enemyProjectiles.end());
+    m_dataPackets.erase(std::remove_if(m_dataPackets.begin(), m_dataPackets.end(),
+                        [](const DataPacket& p){ return !p.alive; }), m_dataPackets.end());
 }
 
 // ---------------------------------------------------------------------------
@@ -1013,6 +1192,33 @@ void CombatScene::render(SceneContext& ctx) {
     renderICE(ctx);
     renderMines(ctx);
 
+    // DataPacket render — small pulsing diamonds in cyan-green
+    if (m_config.objective == NodeObjective::Extract && ctx.vrenderer) {
+        VectorRenderer* vr = ctx.vrenderer;
+        for (const auto& dp : m_dataPackets) {
+            if (!dp.alive) continue;
+            // Draw diamond (4-vertex rotated square)
+            float r = dp.radius;
+            Vec2 verts[4] = {
+                { dp.pos.x,     dp.pos.y - r },
+                { dp.pos.x + r, dp.pos.y     },
+                { dp.pos.x,     dp.pos.y + r },
+                { dp.pos.x - r, dp.pos.y     },
+            };
+            // Pulse alpha based on lifetime
+            float pulse = std::abs(std::sin(dp.lifetime * 4.f));
+            uint8_t bright = static_cast<uint8_t>(160 + 95 * pulse);
+            GlowColor dataCol = { 40, bright, static_cast<uint8_t>(bright / 2) };
+            std::vector<Vec2> poly(std::begin(verts), std::end(verts));
+            vr->drawGlowPoly(poly, dataCol);
+            // Inner cross
+            vr->drawGlowLine({ dp.pos.x - r * 0.5f, dp.pos.y },
+                             { dp.pos.x + r * 0.5f, dp.pos.y }, dataCol);
+            vr->drawGlowLine({ dp.pos.x, dp.pos.y - r * 0.5f },
+                             { dp.pos.x, dp.pos.y + r * 0.5f }, dataCol);
+        }
+    }
+
     // Boss render
     if (m_boss && m_boss->alive) {
         static float s_time = 0.f;
@@ -1047,6 +1253,26 @@ void CombatScene::render(SceneContext& ctx) {
 
     vr->drawCRTOverlay();
 
+    // Threshold crossing flash — full-screen color pulse
+    if (m_thresholdFlash > 0.f) {
+        float t = std::max(0.f, m_thresholdFlash);
+        uint8_t fr = 255, fg = 60, fb = 20; // default orange-red
+        if (m_thresholdFlashPct >= 100) { fr=255; fg=0;  fb=0;   } // red
+        else if (m_thresholdFlashPct >= 75)  { fr=220; fg=0;  fb=255; } // magenta
+        else if (m_thresholdFlashPct >= 50)  { fr=255; fg=120;fb=0;   } // orange
+        else                                 { fr=255; fg=220;fb=0;   } // yellow
+        SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ctx.renderer, fr, fg, fb, (uint8_t)(55 * t));
+        SDL_RenderFillRect(ctx.renderer, nullptr);
+        // Bright border ring
+        SDL_SetRenderDrawColor(ctx.renderer, fr, fg, fb, (uint8_t)(120 * t));
+        SDL_Rect border = { 0, 0, Constants::SCREEN_W, Constants::SCREEN_H };
+        for (int i = 0; i < 4; ++i) {
+            SDL_RenderDrawRect(ctx.renderer, &border);
+            border = { border.x+1, border.y+1, border.w-2, border.h-2 };
+        }
+    }
+
     float glitchIntensity = std::max(0.f, (m_trace.trace() - 75.f) / 25.f);
     if (glitchIntensity > 0.f) vr->drawGlitch(glitchIntensity, SDL_GetTicks());
 
@@ -1061,6 +1287,9 @@ void CombatScene::render(SceneContext& ctx) {
         } else if (m_config.objective == NodeObjective::Survive) {
             int s = std::max(0, (int)m_surviveTimer + 1);
             objStr = "SURVIVE: " + std::to_string(s) + "s";
+        } else if (m_config.objective == NodeObjective::Extract) {
+            objStr = "DATA: " + std::to_string(m_packetsCollected)
+                   + " / " + std::to_string(m_config.extractTarget);
         } else {
             objStr = "ICE: " + std::to_string(m_iceKilled)
                    + " / " + std::to_string(m_config.sweepTarget);
@@ -1074,6 +1303,30 @@ void CombatScene::render(SceneContext& ctx) {
     // Boss health bar
     if (m_boss && m_boss->alive && ctx.hud)
         ctx.hud->drawBossBar(m_boss->bossName(), m_boss->hp, m_boss->maxHp);
+
+    // Boss phase 2 transition banner
+    if (m_bossPhaseTimer > 0.f && ctx.hud) {
+        float t = std::min(1.f, m_bossPhaseTimer / 2.8f);  // 0→1 as timer starts
+        float fade = (t > 0.5f) ? 1.f : (t / 0.5f);        // fade in quick, hold, then fade
+        if (m_bossPhaseTimer < 0.6f) fade = m_bossPhaseTimer / 0.6f;  // fade out last 0.6s
+        uint8_t a = (uint8_t)(255 * fade);
+        // Red flash border
+        SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ctx.renderer, 255, 30, 30, (uint8_t)(40 * fade));
+        SDL_RenderFillRect(ctx.renderer, nullptr);
+        SDL_SetRenderDrawColor(ctx.renderer, 255, 30, 30, (uint8_t)(180 * fade));
+        SDL_Rect b = {0, 0, Constants::SCREEN_W, Constants::SCREEN_H};
+        for (int i = 0; i < 3; ++i) { SDL_RenderDrawRect(ctx.renderer, &b); b={b.x+1,b.y+1,b.w-2,b.h-2}; }
+        // Text banner
+        SDL_Color warn  = {255, 60,  60,  a};
+        SDL_Color sub   = {220, 180, 180, a};
+        std::string line1 = "-- PHASE 2 --";
+        std::string line2 = "SYSTEM OVERRIDE";
+        int cx = Constants::SCREEN_W / 2;
+        int cy = Constants::SCREEN_H / 2 - 16;
+        ctx.hud->drawLabel(line1, cx - ctx.hud->measureText(line1)/2, cy,      warn);
+        ctx.hud->drawLabel(line2, cx - ctx.hud->measureText(line2)/2, cy + 22, sub);
+    }
 
     // Reset viewport after screen shake
     if (m_shakeTimer > 0.f)
@@ -1117,6 +1370,43 @@ void CombatScene::renderICE(SceneContext& ctx) const {
             inner.push_back(sp->pos + (pt - sp->pos) * 0.5f);
         vr->drawGlowPoly(inner, spawnerColor);
     }
+    // Phantom ICE — draw at alpha proportional to visibility
+    // During blink: strobe between full and dim to signal imminent fire.
+    for (auto& ph : m_phantoms) {
+        if (!ph->alive) continue;
+        float vis = ph->visibility;
+        if (ph->blinkTimer > 0.f) {
+            // Strobe at ~8Hz — alternates bright / very dim
+            float blink = std::sin(ph->blinkTimer * 50.27f); // 8 Hz
+            vis = blink > 0.f ? 1.f : 0.15f;
+        }
+        if (vis < 0.02f) continue;  // fully cloaked — skip draw
+        GlowColor phantomCol = { (uint8_t)(50 * vis), (uint8_t)(200 * vis), (uint8_t)(220 * vis) };
+        vr->drawGlowPoly(ph->worldVerts(), phantomCol);
+    }
+
+    // Leech ICE — purple-magenta; pulses brighter when attached
+    for (auto& lc : m_leeches) {
+        if (!lc->alive) continue;
+        float t = lc->attached ? (0.6f + 0.4f * std::sin(SDL_GetTicks() * 0.008f)) : 1.f;
+        GlowColor leechCol = { (uint8_t)(180 * t), (uint8_t)(60 * t), (uint8_t)(255 * t) };
+        vr->drawGlowPoly(lc->worldVerts(), leechCol);
+    }
+
+    // Mirror ICE — silver/white, drawn as an octagon with a bright reflective face line
+    for (auto& mi : m_mirrors) {
+        if (!mi->alive) continue;
+        GlowColor mirrorCol = { 200, 230, 255 };
+        vr->drawGlowPoly(mi->worldVerts(), mirrorCol);
+        // Draw the reflecting face: a bright line perpendicular to the facing direction
+        // The face is a chord on the front side of the circle
+        Vec2 perp = { -std::sin(mi->facingAngle), std::cos(mi->facingAngle) };
+        Vec2 faceA = mi->pos + perp * (mi->radius * 0.85f);
+        Vec2 faceB = mi->pos - perp * (mi->radius * 0.85f);
+        GlowColor faceCol = { 255, 255, 255 };
+        vr->drawGlowLine(faceA, faceB, faceCol);
+    }
+
     for (auto& ep : m_enemyProjectiles) {
         const auto& v = ep->worldVerts();
         if (v.size() >= 2) vr->drawGlowLine(v[0], v[1], eprojColor);
@@ -1193,6 +1483,9 @@ void CombatScene::emitDeathParticles() {
     emit(m_hunters,          Constants::COL_HUNTER_R,  Constants::COL_HUNTER_G,  Constants::COL_HUNTER_B);
     emit(m_sentries,         Constants::COL_SENTRY_R,  Constants::COL_SENTRY_G,  Constants::COL_SENTRY_B);
     emit(m_spawnerICE,       Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G, Constants::COL_SPAWNER_B);
+    emit(m_phantoms,         50, 200, 220);
+    emit(m_leeches,          180, 60, 255);
+    emit(m_mirrors,          200, 230, 255);
     emit(m_enemyProjectiles, Constants::COL_EPROJ_R,   Constants::COL_EPROJ_G,   Constants::COL_EPROJ_B);
 }
 
@@ -1206,6 +1499,15 @@ void CombatScene::emitDeathFragments() {
     for (const auto& e : m_spawnerICE)
         if (!e->alive)
             m_fragments.emit(e->pos, Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G, Constants::COL_SPAWNER_B, 12, 18.f, 200.f);
+    for (const auto& e : m_phantoms)
+        if (!e->alive)
+            m_fragments.emit(e->pos, 50, 200, 220, 8, 12.f, 300.f);
+    for (const auto& e : m_leeches)
+        if (!e->alive)
+            m_fragments.emit(e->pos, 180, 60, 255, 6, 10.f, 280.f);
+    for (const auto& e : m_mirrors)
+        if (!e->alive)
+            m_fragments.emit(e->pos, 200, 230, 255, 8, 12.f, 250.f);
 }
 
 // ---------------------------------------------------------------------------

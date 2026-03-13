@@ -84,6 +84,13 @@ BossEnemy::UpdateResult BossEnemy::update(float dt, Vec2 playerPos) {
     m_spinAngle += dt * 1.8f;
     if (m_spinAngle > TAU) m_spinAngle -= TAU;
 
+    // Latch phase 2 and signal caller exactly once
+    if (!m_phase2 && hp <= maxHp / 2) {
+        m_phase2 = true;
+        out.phaseTransitioned = true;
+        m_fireTimer = 0.f;  // reset fire timer so phase 2 pattern starts fresh
+    }
+
     switch (bossType) {
         case BossType::Manticore: updateManticore(dt, playerPos, out); break;
         case BossType::Archon:    updateArchon   (dt, playerPos, out); break;
@@ -99,41 +106,54 @@ static std::unique_ptr<EnemyProjectile> makeProj(Vec2 from, Vec2 dir, float spee
 }
 
 void BossEnemy::updateManticore(float dt, Vec2 playerPos, UpdateResult& out) {
-    bool enraged = hp <= maxHp / 2;
-    float orbitSpeed = enraged ? 1.4f : 0.85f;
+    float orbitSpeed = m_phase2 ? 1.4f : 0.85f;
     m_orbitAngle += dt * orbitSpeed;
 
     const Vec2 centre = { Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f };
     pos = centre + Vec2{ std::cos(m_orbitAngle) * 185.f, std::sin(m_orbitAngle) * 165.f };
 
-    float fireInterval = enraged ? 1.4f : 2.4f;
+    // Aimed fan attack
+    float fireInterval = m_phase2 ? 1.4f : 2.4f;
     m_fireTimer += dt;
     if (m_fireTimer >= fireInterval) {
         m_fireTimer = 0.f;
         Vec2 dir = (playerPos - pos).normalized();
-        int spread = enraged ? 7 : 5;
-        float step = enraged ? 0.22f : 0.28f;
+        int spread = m_phase2 ? 7 : 5;
+        float step  = m_phase2 ? 0.22f : 0.28f;
         for (int k = 0; k < spread; ++k) {
             float a = std::atan2(dir.y, dir.x) + step * (k - spread / 2);
             out.fired.push_back(makeProj(pos, Vec2::fromAngle(a), 280.f));
         }
     }
+
+    // Phase 2 only: 12-way ring burst every 3.5s
+    if (m_phase2) {
+        m_burstTimer += dt;
+        if (m_burstTimer >= 3.5f) {
+            m_burstTimer = 0.f;
+            constexpr int RAYS = 12;
+            for (int k = 0; k < RAYS; ++k) {
+                float a = m_spinAngle + k * (TAU / RAYS);
+                out.fired.push_back(makeProj(pos, Vec2::fromAngle(a), 240.f));
+            }
+        }
+    }
 }
 
 void BossEnemy::updateArchon(float dt, Vec2 playerPos, UpdateResult& out) {
-    bool enraged = coreExposed();
-    float orbitSpeed = enraged ? 1.1f : 0.55f;
+    bool exposed = coreExposed();
+    float orbitSpeed = exposed ? 1.1f : 0.55f;
     m_orbitAngle += dt * orbitSpeed;
 
     const Vec2 centre = { Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f };
     pos = centre + Vec2{ std::cos(m_orbitAngle) * 145.f, std::sin(m_orbitAngle) * 130.f };
 
-    float fireInterval = enraged ? 1.6f : 3.0f;
+    float fireInterval = exposed ? 1.6f : 3.0f;
     m_fireTimer += dt;
     if (m_fireTimer >= fireInterval) {
         m_fireTimer = 0.f;
         Vec2 dir = (playerPos - pos).normalized();
-        if (enraged) {
+        if (exposed) {
             // 3-way spread when shields are down
             for (int k = -1; k <= 1; ++k) {
                 float a = std::atan2(dir.y, dir.x) + k * 0.32f;
@@ -143,16 +163,33 @@ void BossEnemy::updateArchon(float dt, Vec2 playerPos, UpdateResult& out) {
             out.fired.push_back(makeProj(pos, dir, 200.f));
         }
     }
+
+    // Phase 2: once all shields are destroyed, start a regen countdown (6s → restore one)
+    if (m_phase2 && exposed) {
+        if (m_shieldRegenTimer < 0.f) {
+            m_shieldRegenTimer = 6.f;   // start countdown
+        } else {
+            m_shieldRegenTimer -= dt;
+            if (m_shieldRegenTimer <= 0.f) {
+                m_shieldRegenTimer = -1.f;
+                // Restore the first destroyed shield
+                for (int i = 0; i < 4; ++i) {
+                    if (!m_shields[i]) { m_shields[i] = true; break; }
+                }
+            }
+        }
+    } else {
+        m_shieldRegenTimer = -1.f;  // reset if shields are back up
+    }
 }
 
 void BossEnemy::updateVortex(float dt, Vec2 playerPos, UpdateResult& out) {
-    bool enraged = hp <= maxHp / 2;
     // Slow drift orbit (very tight)
     m_orbitAngle += dt * 0.28f;
     const Vec2 centre = { Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f };
     pos = centre + Vec2{ std::cos(m_orbitAngle) * 75.f, std::sin(m_orbitAngle) * 60.f };
 
-    float headInterval = enraged ? 1.8f : 3.0f;
+    float headInterval = m_phase2 ? 1.8f : 3.0f;
     for (int i = 0; i < 4; ++i) {
         if (!m_heads[i]) continue;
         m_headFire[i] += dt;
@@ -161,10 +198,16 @@ void BossEnemy::updateVortex(float dt, Vec2 playerPos, UpdateResult& out) {
             Vec2 hp2  = headPos(i);
             Vec2 dir  = (playerPos - hp2).normalized();
             out.fired.push_back(makeProj(hp2, dir, 240.f));
-            if (enraged) {
-                // Also fire perpendicular shot when enraged
+            if (m_phase2) {
+                // Phase 2: perpendicular shot + 6-way radial burst from body core
                 Vec2 perp = { -dir.y, dir.x };
                 out.fired.push_back(makeProj(hp2, perp, 210.f));
+                // 6-way star burst from the body each time a head fires
+                constexpr int SPOKES = 6;
+                for (int k = 0; k < SPOKES; ++k) {
+                    float a = m_spinAngle + k * (TAU / SPOKES);
+                    out.fired.push_back(makeProj(pos, Vec2::fromAngle(a), 200.f));
+                }
             }
         }
     }

@@ -1,0 +1,64 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Dependencies
+      # -----------------------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake ninja-build \
+            libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev \
+            g++-mingw-w64-x86-64 mingw-w64
+
+      # -----------------------------------------------------------------------
+      # Download Windows SDL2 dev packages (mirrors release.yml)
+      # -----------------------------------------------------------------------
+      - name: Fetch Windows SDL2 packages
+        run: |
+          mkdir -p deps/windows
+          cd deps/windows
+          wget -q "https://github.com/libsdl-org/SDL/releases/download/release-2.32.4/SDL2-devel-2.32.4-mingw.tar.gz" \
+               -O SDL2-mingw.tar.gz
+          wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-devel-2.24.0-mingw.tar.gz" \
+               -O SDL2_ttf-mingw.tar.gz
+          wget -q "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-devel-2.8.1-mingw.tar.gz" \
+               -O SDL2_mixer-mingw.tar.gz
+          tar xf SDL2-mingw.tar.gz
+          tar xf SDL2_ttf-mingw.tar.gz
+          tar xf SDL2_mixer-mingw.tar.gz
+
+      # -----------------------------------------------------------------------
+      # Linux build
+      # -----------------------------------------------------------------------
+      - name: Build Linux
+        run: |
+          cmake -S . -B build-linux \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+          cmake --build build-linux --parallel $(nproc)
+
+      # -----------------------------------------------------------------------
+      # Windows cross-compile
+      # -----------------------------------------------------------------------
+      - name: Build Windows
+        run: |
+          cmake -S . -B build-windows \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw64.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+          cmake --build build-windows --parallel $(nproc)

@@ -20,6 +20,7 @@ public:
 
     struct UpdateResult {
         std::vector<std::unique_ptr<EnemyProjectile>> fired;
+        bool phaseTransitioned = false;  // true the first frame phase 2 triggers
     };
     void update(float /*dt*/) override {}
     UpdateResult update(float dt, Vec2 playerPos);
@@ -37,9 +38,14 @@ private:
     float m_orbitAngle  = 0.f;   // boss orbit around screen centre
     float m_spinAngle   = 0.f;   // body/blade spin
     float m_fireTimer   = 0.f;
+    bool  m_phase2      = false; // latched true when hp first drops to ≤50%
 
-    // ARCHON: 4 orbiting shields
+    // MANTICORE phase 2: radial ring burst
+    float m_burstTimer  = 0.f;
+
+    // ARCHON: 4 orbiting shields + phase 2 regen
     std::array<bool, 4>  m_shields    = {true, true, true, true};
+    float m_shieldRegenTimer = -1.f; // -1 = not counting; ≥0 counts down to regen
 
     // VORTEX: 4 heads (cardinal), each with their own fire timer
     std::array<bool,  4> m_heads      = {true, true, true, true};

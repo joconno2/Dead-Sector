@@ -1,5 +1,6 @@
 #include "MapScene.hpp"
 #include "CombatScene.hpp"
+#include "EventScene.hpp"
 #include "SceneContext.hpp"
 #include "systems/ModSystem.hpp"
 #include "core/Mods.hpp"
@@ -124,6 +125,14 @@ bool MapScene::jackIn(SceneContext& ctx) {
     const Node& n = m_nodeMap.node(m_cursor);
     if (n.status != NodeStatus::Available) return false;
 
+    // Event nodes skip combat entirely
+    if (n.objective == NodeObjective::Event) {
+        // Seed from node id + world so the event is consistent if re-visited before clearing
+        unsigned int seed = static_cast<unsigned>(ctx.currentWorld * 1000 + n.id);
+        ctx.scenes->replace(std::make_unique<EventScene>(n.id, seed));
+        return true;
+    }
+
     // Compute trace tick rate from tier, scaled by world difficulty
     float worldMult = worldDef(ctx.currentWorld).diffMult;
     float tickRate  = (2.5f + (n.tier - 1) * 1.5f) * worldMult;
@@ -134,7 +143,14 @@ bool MapScene::jackIn(SceneContext& ctx) {
     cfg.objective      = n.objective;
     cfg.sweepTarget    = n.sweepTarget;
     cfg.surviveSeconds = n.surviveSeconds;
+    cfg.extractTarget  = n.extractTarget;
     cfg.traceTickRate  = tickRate;
+
+    // Consume any pending event effects
+    if (ctx.nextNodeStartTrace > 0.f) {
+        cfg.startTrace          = ctx.nextNodeStartTrace;
+        ctx.nextNodeStartTrace  = 0.f;
+    }
 
     ctx.scenes->replace(std::make_unique<CombatScene>(cfg));
     return true;
@@ -188,6 +204,8 @@ void MapScene::render(SceneContext& ctx) {
         if (!selKnown)                                     nodeInfo += "[UNKNOWN]";
         else if (sel.objective == NodeObjective::Sweep)    nodeInfo += "[SWEEP]";
         else if (sel.objective == NodeObjective::Survive)  nodeInfo += "[SURVIVE]";
+        else if (sel.objective == NodeObjective::Extract)  nodeInfo += "[EXTRACT]";
+        else if (sel.objective == NodeObjective::Event)    nodeInfo += "[EVENT]";
         else if (sel.objective == NodeObjective::Boss)     nodeInfo += "[BOSS]";
 
         std::string statusStr;
@@ -389,6 +407,28 @@ void MapScene::drawRoom(SDL_Renderer* r, const Node& n, bool selected, float pul
             int w = 8 - s*2; int y = icy - 9 + s*2;
             SDL_RenderDrawLine(r, icx-w, y, icx+w, y);
         }
+    } else if (n.objective == NodeObjective::Extract) {
+        // Data packet diamond with downward arrow
+        SDL_SetRenderDrawColor(r, 40, 220, 160, iconAlpha);
+        // Diamond outline
+        SDL_RenderDrawLine(r, icx,    icy-8,  icx+7,  icy);
+        SDL_RenderDrawLine(r, icx+7,  icy,    icx,    icy+8);
+        SDL_RenderDrawLine(r, icx,    icy+8,  icx-7,  icy);
+        SDL_RenderDrawLine(r, icx-7,  icy,    icx,    icy-8);
+        // Inner cross
+        SDL_RenderDrawLine(r, icx-4,  icy,    icx+4,  icy);
+        SDL_RenderDrawLine(r, icx,    icy-4,  icx,    icy+4);
+    } else if (n.objective == NodeObjective::Event) {
+        // Question mark — unknown contents
+        SDL_SetRenderDrawColor(r, 220, 200, 60, iconAlpha);
+        // Arc of '?' (top curve: two lines approximating a curve)
+        SDL_RenderDrawLine(r, icx-5, icy-8, icx+5, icy-8);
+        SDL_RenderDrawLine(r, icx+5, icy-8, icx+6, icy-3);
+        SDL_RenderDrawLine(r, icx+6, icy-3, icx,   icy+1);
+        SDL_RenderDrawLine(r, icx,   icy+1, icx,   icy+4);
+        // Dot
+        SDL_Rect qdot = { icx-1, icy+6, 3, 3 };
+        SDL_RenderFillRect(r, &qdot);
     } else if (n.objective == NodeObjective::Boss) {
         // Diamond with inner diamond (danger symbol)
         SDL_SetRenderDrawColor(r, 255, 60, 30, iconAlpha);

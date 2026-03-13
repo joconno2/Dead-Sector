@@ -3,7 +3,7 @@
 #include <vector>
 #include "core/Programs.hpp"
 
-enum class NodeObjective { Sweep, Survive, Boss };
+enum class NodeObjective { Sweep, Survive, Boss, Extract, Event };
 enum class NodeStatus    { Locked, Available, Cleared };
 
 struct Node {
@@ -15,6 +15,7 @@ struct Node {
     int            gridRow;
     int            sweepTarget;   // ICE kills required (Sweep / Boss)
     float          surviveSeconds;// seconds to outlast (Survive)
+    int            extractTarget = 0; // data packets to collect (Extract)
     NodeStatus     status   = NodeStatus::Locked;
     std::vector<int> connections; // adjacent node IDs (bidirectional)
     bool           revealed = false; // SHADOW SCANNER: show on map but still locked
