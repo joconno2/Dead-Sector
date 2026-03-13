@@ -10,6 +10,7 @@ class SceneManager;
 class NodeMap;
 class ModSystem;
 class ProgramSystem;
+class AudioSystem;
 
 struct SceneContext {
     SDL_Renderer*       renderer   = nullptr;
@@ -21,6 +22,7 @@ struct SceneContext {
     ProgramSystem*      programs   = nullptr;
     SDL_GameController* controller = nullptr;
     bool*               running    = nullptr;
+    AudioSystem*        audio      = nullptr;
 
     // Persistent save data
     SaveData*           saveData   = nullptr;

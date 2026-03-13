@@ -7,6 +7,7 @@
 #include "world/NodeMap.hpp"
 #include "systems/ModSystem.hpp"
 #include "systems/ProgramSystem.hpp"
+#include "audio/AudioSystem.hpp"
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -20,7 +21,7 @@ Game::Game()  = default;
 Game::~Game() = default;
 
 bool Game::init() {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
         std::cerr << "SDL_Init error: " << SDL_GetError() << "\n";
         return false;
     }
@@ -55,6 +56,8 @@ bool Game::init() {
     m_nodeMap   = std::make_unique<NodeMap>();
     m_mods      = std::make_unique<ModSystem>();
     m_programs  = std::make_unique<ProgramSystem>();
+    m_audio     = std::make_unique<AudioSystem>();
+    m_audio->init();
 
     // Build the shared context passed to all scenes
     m_ctx.renderer  = m_renderer;
@@ -65,6 +68,7 @@ bool Game::init() {
     m_ctx.mods      = m_mods.get();
     m_ctx.programs  = m_programs.get();
     m_ctx.running   = &m_running;
+    m_ctx.audio     = m_audio.get();
 
     // Open first available game controller
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {

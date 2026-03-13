@@ -1,5 +1,6 @@
 #pragma once
 #include "IScene.hpp"
+class AudioSystem;
 #include "world/Node.hpp"
 #include "core/Constants.hpp"
 #include "systems/PhysicsSystem.hpp"
@@ -94,6 +95,8 @@ private:
         bool prog0 = false, prog1 = false, prog2 = false;
     } m_input;
     bool m_prog0Prev = false, m_prog1Prev = false, m_prog2Prev = false;
+
+    AudioSystem* m_audio = nullptr;  // borrowed from SceneContext
 
     void setupCollisionCallback(SceneContext& ctx);
     void resetGame(SceneContext& ctx);

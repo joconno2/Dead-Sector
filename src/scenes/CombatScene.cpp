@@ -1,4 +1,5 @@
 #include "CombatScene.hpp"
+#include "audio/AudioSystem.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
 #include "GameOverScene.hpp"
@@ -42,6 +43,10 @@ void CombatScene::onEnter(SceneContext& ctx) {
         for (int i = 0; i < stacks; ++i) m_scoreMult *= 1.20f;
     }
 
+    m_audio = ctx.audio;
+    if (m_audio)
+        m_audio->playMusic("assets/music/Karl Casey - Fortress.mp3");
+
     setupCollisionCallback(ctx);
     resetGame(ctx);
 
@@ -62,9 +67,16 @@ void CombatScene::onEnter(SceneContext& ctx) {
         if (ctx.mods && ctx.mods->hasGhostProtocol()) tickRate *= 0.6f;
         m_trace.setTickRate(tickRate);
     }
+
+    // Threshold alarm SFX
+    m_trace.setThresholdCallback([this](int /*pct*/) {
+        if (m_audio) m_audio->playThreshold();
+    });
 }
 
 void CombatScene::onExit() {
+    if (m_audio) m_audio->stopMusic();
+    m_audio = nullptr;
     m_projectiles.clear();
     m_hunters.clear();
     m_sentries.clear();
@@ -98,6 +110,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             ev.iceEntity->alive = false;
             m_score += static_cast<int>(ev.iceEntity->scoreValue() * m_scoreMult);
             m_iceKilled++;
+            if (m_audio) m_audio->playExplosion();
 
             if (mods) m_trace.add(-mods->traceSinkAmt());
 
@@ -364,6 +377,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                 if (hasRicochetMod) p->noWrap = true;
                 m_projectiles.emplace_back(p);
                 m_shotCount++;
+                if (m_audio) m_audio->playShot();
 
                 if (splitRound && m_shotCount % 3 == 0) {
                     Vec2 h    = Vec2::fromAngle(m_avatar->angle);

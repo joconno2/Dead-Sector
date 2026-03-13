@@ -25,7 +25,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             cmake ninja-build zip \
-            libsdl2-dev libsdl2-ttf-dev \
+            libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev \
             g++-mingw-w64-x86-64 mingw-w64
 
       # -----------------------------------------------------------------------
@@ -39,8 +39,11 @@ jobs:
                -O SDL2-mingw.tar.gz
           wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-devel-2.24.0-mingw.tar.gz" \
                -O SDL2_ttf-mingw.tar.gz
+          wget -q "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-devel-2.8.1-mingw.tar.gz" \
+               -O SDL2_mixer-mingw.tar.gz
           tar xf SDL2-mingw.tar.gz
           tar xf SDL2_ttf-mingw.tar.gz
+          tar xf SDL2_mixer-mingw.tar.gz
 
       # -----------------------------------------------------------------------
       # Linux release build
@@ -79,8 +82,9 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           DIR="dist/dead-sector-windows-${TAG}"
           mkdir -p "$DIR"
-          cp build-windows/dead-sector.exe "$DIR/"
-          cp -r build-windows/assets       "$DIR/"
+          cp build-windows/dead-sector.exe    "$DIR/"
+          cp build-windows/SDL2_mixer.dll     "$DIR/"
+          cp -r build-windows/assets          "$DIR/"
           cd dist
           zip -r "dead-sector-windows-${TAG}.zip" "dead-sector-windows-${TAG}/"
 
@@ -102,7 +106,7 @@ jobs:
 
             **Windows:** extract the zip, double-click `dead-sector.exe`. No additional installs required.
 
-            **Linux:** extract the zip, run `./dead-sector`. Requires `libsdl2-2.0-0` and `libsdl2-ttf-2.0-0` (`apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0`).
+            **Linux:** extract the zip, run `./dead-sector`. Requires `libsdl2-2.0-0`, `libsdl2-ttf-2.0-0`, and `libsdl2-mixer-2.0-0` (`apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0`).
           files: |
             dist/dead-sector-windows-${{ github.ref_name }}.zip
             dist/dead-sector-linux-${{ github.ref_name }}.zip

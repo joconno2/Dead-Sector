@@ -1,4 +1,5 @@
 #include "MainMenuScene.hpp"
+#include "audio/AudioSystem.hpp"
 #include "MapScene.hpp"
 #include "CombatScene.hpp"
 #include "ShopScene.hpp"
@@ -72,10 +73,12 @@ static constexpr int MENU_COUNT = 4;
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-void MainMenuScene::onEnter(SceneContext&) {
+void MainMenuScene::onEnter(SceneContext& ctx) {
     m_time   = 0.f;
     m_pulse  = 0.f;
     m_cursor = MenuItem::NewRun;
+    if (ctx.audio)
+        ctx.audio->playMusic("assets/music/Karl Casey - Jason Goes to Hell.mp3");
 }
 
 void MainMenuScene::onExit() {}
