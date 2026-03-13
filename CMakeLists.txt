@@ -64,9 +64,12 @@ add_custom_command(TARGET dead-sector POST_BUILD
         $<TARGET_FILE_DIR:dead-sector>/assets
 )
 
-# On Windows, SDL2_mixer ships as a DLL — copy it next to the exe
+# On Windows, SDL2_mixer.dll depends on SDL2.dll at runtime, so ship both
 if(WIN32)
     add_custom_command(TARGET dead-sector POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/deps/windows/SDL2-2.32.4/x86_64-w64-mingw32/bin/SDL2.dll"
+            $<TARGET_FILE_DIR:dead-sector>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/deps/windows/SDL2_mixer-2.8.1/x86_64-w64-mingw32/bin/SDL2_mixer.dll"
             $<TARGET_FILE_DIR:dead-sector>
