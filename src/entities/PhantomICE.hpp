@@ -8,7 +8,7 @@ class PhantomICE : public Entity {
 public:
     explicit PhantomICE(Vec2 pos, Vec2 initialVel = {});
     void update(float dt) override;
-    int  scoreValue() const override { return 175; }
+    int  scoreValue() const override { return 9; }
 
     // Set by AISystem each frame based on distance to avatar
     bool  nearPlayer  = false;     // true when within REVEAL_RADIUS

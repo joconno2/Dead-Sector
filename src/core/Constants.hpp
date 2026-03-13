@@ -44,9 +44,9 @@ namespace Constants {
     constexpr int STARTING_AMMO = 30;
 
     // Score
-    constexpr int SCORE_LARGE  = 20;
-    constexpr int SCORE_MEDIUM = 50;
-    constexpr int SCORE_SMALL  = 100;
+    constexpr int SCORE_LARGE  = 1;
+    constexpr int SCORE_MEDIUM = 3;
+    constexpr int SCORE_SMALL  = 5;
 
     // (DataConstruct initial spawn removed — combat uses pure ICE escalation)
 
@@ -61,9 +61,9 @@ namespace Constants {
     constexpr int         FONT_SIZE = 20;
 
     // Trace system
-    constexpr float TRACE_TICK_RATE   = 3.0f;   // %/sec baseline tick rate
-    constexpr float TRACE_HIT_PENALTY = 8.0f;   // % added when avatar is hit
-    constexpr float TRACE_ALARM_ADD   = 15.0f;  // % added on sentry alarm
+    constexpr float TRACE_TICK_RATE   = 1.5f;   // %/sec baseline tick rate
+    constexpr float TRACE_HIT_PENALTY = 4.0f;   // % added when avatar is hit
+    constexpr float TRACE_ALARM_ADD   = 7.5f;   // % added on sentry alarm
     constexpr float TRACE_THRESH_1    = 25.0f;
     constexpr float TRACE_THRESH_2    = 50.0f;
     constexpr float TRACE_THRESH_3    = 75.0f;
@@ -78,20 +78,20 @@ namespace Constants {
     constexpr float HUNTER_MAX_SPEED = 200.f;
     constexpr float HUNTER_ACCEL     = 280.f;
     constexpr float HUNTER_RADIUS    = 12.f;
-    constexpr int   SCORE_HUNTER     = 75;
+    constexpr int   SCORE_HUNTER     = 4;
 
     // SentryICE
     constexpr float SENTRY_RADIUS    = 18.f;
     constexpr float SENTRY_ROT_SPEED = 1.8f;
     constexpr float SENTRY_FIRE_RATE = 3.8f;  // 3-way burst, so longer interval
     constexpr float SENTRY_PROJ_SPEED = 220.f;
-    constexpr int   SCORE_SENTRY     = 150;
+    constexpr int   SCORE_SENTRY     = 8;
 
     // SpawnerICE
     constexpr float SPAWNER_RADIUS       = 22.f;
     constexpr float SPAWNER_SPAWN_RATE   = 5.5f;
     constexpr int   SPAWNER_MAX_CHILDREN = 4;
-    constexpr int   SCORE_SPAWNER        = 200;
+    constexpr int   SCORE_SPAWNER        = 10;
 
     // EnemyProjectile
     constexpr float ENEMY_PROJ_SPEED    = 220.f;

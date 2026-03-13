@@ -135,7 +135,7 @@ bool MapScene::jackIn(SceneContext& ctx) {
 
     // Compute trace tick rate from tier, scaled by world difficulty
     float worldMult = worldDef(ctx.currentWorld).diffMult;
-    float tickRate  = (2.5f + (n.tier - 1) * 1.5f) * worldMult;
+    float tickRate  = (1.25f + (n.tier - 1) * 0.75f) * worldMult;
 
     NodeConfig cfg;
     cfg.nodeId         = n.id;

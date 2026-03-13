@@ -7,7 +7,7 @@ class PulseMine : public Entity {
 public:
     PulseMine(float x, float y);
     void update(float dt) override;
-    int  scoreValue() const override { return 150; }
+    int  scoreValue() const override { return 8; }
 
     PulseState state() const { return m_state; }
     float      pulseRadius() const { return m_pulseRadius; }

@@ -870,7 +870,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                 if ((dp.pos - m_avatar->pos).length() < m_avatar->radius + dp.radius + 8.f) {
                     dp.alive = false;
                     m_packetsCollected++;
-                    m_score += static_cast<int>(50.f * m_scoreMult);
+                    m_score += static_cast<int>(3.f * m_scoreMult);
                     m_particles.emit(dp.pos, 80, 220, 180, 6);
                 }
             }
@@ -908,7 +908,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
 
                 if (m_boss->hp <= 0) {
                     m_boss->alive = false;
-                    m_score += static_cast<int>(2000.f * m_scoreMult);
+                    m_score += static_cast<int>(100.f * m_scoreMult);
                     m_iceKilled++;
                     // Big death explosion
                     m_fragments.emit(m_boss->pos, 255, 180, 40, 50, 22.f, 450.f);

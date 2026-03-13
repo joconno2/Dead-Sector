@@ -32,7 +32,7 @@ public:
     // True when the core can be damaged (ARCHON: all shields down; others: always)
     bool coreExposed() const;
 
-    int scoreValue() const override { return 2000; }
+    int scoreValue() const override { return 100; }
 
 private:
     float m_orbitAngle  = 0.f;   // boss orbit around screen centre

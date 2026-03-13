@@ -22,32 +22,32 @@ static const EventDef EVENT_POOL[] = {
         "DATA CACHE",
         "An unencrypted archive sits on an abandoned subnet.\n"
         "Whoever owned this forgot to wipe it.",
-        "ACQUIRED: +250 CREDITS",
-        250, 0.f, 0
+        "ACQUIRED: +13 CREDITS",
+        13, 0.f, 0
     },
     {
         "CORP_BACKDOOR",
         "CORPORATE BACKDOOR",
         "A maintenance account never decommissioned.\n"
         "The corp doesn't even know it exists.",
-        "CREDIT TRANSFER COMPLETE: +350 CREDITS",
-        350, 0.f, 0
+        "CREDIT TRANSFER COMPLETE: +18 CREDITS",
+        18, 0.f, 0
     },
     {
         "ICE_CRYPT",
         "ICE CRYPT",
         "A locked sector sealed with decade-old encryption.\n"
         "You crack it in four seconds flat.",
-        "CRYPT BREACHED: +180 CREDITS",
-        180, 0.f, 0
+        "CRYPT BREACHED: +9 CREDITS",
+        9, 0.f, 0
     },
     {
         "GHOST_MARKET",
         "GHOST MARKET",
         "A shadow-net bazaar node — buyers and sellers, no names.\n"
         "Someone left their credit line open.",
-        "GHOST TRANSFER: +300 CREDITS",
-        300, 0.f, 0
+        "GHOST TRANSFER: +15 CREDITS",
+        15, 0.f, 0
     },
     {
         "FIRMWARE_UPDATE",
@@ -62,24 +62,24 @@ static const EventDef EVENT_POOL[] = {
         "NEURAL BOOST",
         "An experimental kernel fragment — origin unknown.\n"
         "It slots into your deck like it was made for you.",
-        "AUGMENTED: +1 EXTRA LIFE  +100 CREDITS",
-        100, 0.f, 1
+        "AUGMENTED: +1 EXTRA LIFE  +5 CREDITS",
+        5, 0.f, 1
     },
     {
         "KERNEL_EXPLOIT",
         "KERNEL EXPLOIT",
         "A zero-day in the local hypervisor, unpublished.\n"
         "You extract every credit register you can reach.",
-        "ROOT ACCESS: +400 CREDITS",
-        400, 0.f, 0
+        "ROOT ACCESS: +20 CREDITS",
+        20, 0.f, 0
     },
     {
         "ABANDONED_TERMINAL",
         "ABANDONED TERMINAL",
         "A node from the old net, before the corps took over.\n"
         "Its memory banks are still full.",
-        "ARCHIVES LOOTED: +220 CREDITS",
-        220, 0.f, 0
+        "ARCHIVES LOOTED: +11 CREDITS",
+        11, 0.f, 0
     },
     // ---- DEBUFFS -----------------------------------------------------
     {
@@ -97,8 +97,8 @@ static const EventDef EVENT_POOL[] = {
         "A feedback pulse burns through your deck's buffer.\n"
         "Credits scatter across the subnet — unrecoverable.\n"
         "The alarm signal is already propagating.",
-        "DAMAGE: -150 CREDITS  NEXT NODE +15% TRACE",
-        -150, 15.f, 0
+        "DAMAGE: -8 CREDITS  NEXT NODE +15% TRACE",
+        -8, 15.f, 0
     },
     {
         "SYSTEM_PURGE",
@@ -106,8 +106,8 @@ static const EventDef EVENT_POOL[] = {
         "Automated security kicks in — everything in cache\n"
         "is wiped before you can grab it.\n"
         "You leave with nothing.",
-        "PURGED: -250 CREDITS",
-        -250, 0.f, 0
+        "PURGED: -13 CREDITS",
+        -13, 0.f, 0
     },
     {
         "BLACK_ICE_TRAP",

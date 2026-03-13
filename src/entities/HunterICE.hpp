@@ -6,5 +6,5 @@ class HunterICE : public Entity {
 public:
     explicit HunterICE(Vec2 pos, Vec2 initialVel = {});
     void update(float dt) override;
-    int  scoreValue() const override { return 75; }
+    int  scoreValue() const override { return 4; }
 };

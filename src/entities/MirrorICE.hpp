@@ -7,7 +7,7 @@ class MirrorICE : public Entity {
 public:
     explicit MirrorICE(Vec2 pos, Vec2 initialVel = {});
     void update(float dt) override;
-    int  scoreValue() const override { return 200; }
+    int  scoreValue() const override { return 10; }
 
     float facingAngle = 0.f;   // angle the mirror face points (toward player each frame)
 };

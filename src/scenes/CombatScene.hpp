@@ -35,7 +35,7 @@ struct NodeConfig {
     int           sweepTarget    = 6;
     float         surviveSeconds = 30.f;
     int           extractTarget  = 8;   // data packets to collect (Extract objective)
-    float         traceTickRate  = 3.0f;
+    float         traceTickRate  = 1.5f;
     bool          endless        = false;
     int           endlessWave    = 0;
     float         startTrace     = 0.f;  // carry trace forward in endless mode

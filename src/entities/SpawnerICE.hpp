@@ -6,7 +6,7 @@ class SpawnerICE : public Entity {
 public:
     explicit SpawnerICE(Vec2 pos, Vec2 vel = {});
     void update(float dt) override;
-    int  scoreValue() const override { return 200; }
+    int  scoreValue() const override { return 10; }
 
     float spawnCooldown  = 1.0f;   // first spawn delay (shorter to make presence felt)
     bool  wantsToSpawn   = false;  // set by AISystem

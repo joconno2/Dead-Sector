@@ -9,7 +9,7 @@ class LeechICE : public Entity {
 public:
     explicit LeechICE(Vec2 pos, Vec2 initialVel = {});
     void update(float dt) override;
-    int  scoreValue() const override { return 100; }
+    int  scoreValue() const override { return 5; }
 
     bool  attached    = false;   // true once latched to avatar
     float traceTimer  = 0.f;     // accumulates while attached for periodic trace spikes
