@@ -1,6 +1,7 @@
 #include "Game.hpp"
 #include "core/Constants.hpp"
 #include "core/SaveSystem.hpp"
+#include "core/DisplaySettings.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
 #include "scenes/MainMenuScene.hpp"
@@ -11,6 +12,7 @@
 
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
 #include <iostream>
 
 // ---------------------------------------------------------------------------
@@ -34,7 +36,7 @@ bool Game::init() {
         "DEAD SECTOR",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         Constants::SCREEN_W, Constants::SCREEN_H,
-        SDL_WINDOW_SHOWN
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
     );
     if (!m_window) {
         std::cerr << "SDL_CreateWindow error: " << SDL_GetError() << "\n";
@@ -50,6 +52,8 @@ bool Game::init() {
         return false;
     }
 
+    SDL_RenderSetLogicalSize(m_renderer, Constants::SCREEN_W, Constants::SCREEN_H);
+
     m_vrenderer = std::make_unique<VectorRenderer>(m_renderer);
     m_hud       = std::make_unique<HUD>(m_renderer, Constants::FONT_PATH, Constants::FONT_SIZE);
     m_scenes    = std::make_unique<SceneManager>();
@@ -60,6 +64,7 @@ bool Game::init() {
     m_audio->init();
 
     // Build the shared context passed to all scenes
+    m_ctx.window    = m_window;
     m_ctx.renderer  = m_renderer;
     m_ctx.vrenderer = m_vrenderer.get();
     m_ctx.hud       = m_hud.get();
@@ -85,6 +90,18 @@ bool Game::init() {
     // Load persistent save data
     m_saveData       = SaveSystem::load();
     m_ctx.saveData   = &m_saveData;
+
+    // Apply saved volume settings
+    if (m_audio) {
+        m_audio->setMusicVolume(m_saveData.musicVolume * MIX_MAX_VOLUME / 100);
+        m_audio->setSfxVolume(  m_saveData.sfxVolume   * MIX_MAX_VOLUME / 100);
+    }
+
+    // Apply saved display mode on every launch (handles fullscreen/borderless/windowed)
+    applyDisplaySettings(m_window, m_renderer,
+        m_saveData.displayMode,
+        m_saveData.windowedWidth,
+        m_saveData.windowedHeight);
 
     m_scenes->start(std::make_unique<MainMenuScene>(), m_ctx);
     return true;

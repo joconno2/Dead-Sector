@@ -13,6 +13,7 @@ class ProgramSystem;
 class AudioSystem;
 
 struct SceneContext {
+    SDL_Window*         window     = nullptr;
     SDL_Renderer*       renderer   = nullptr;
     VectorRenderer*     vrenderer  = nullptr;
     HUD*                hud        = nullptr;

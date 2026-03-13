@@ -38,10 +38,10 @@ static const ShopItem SHOP_CATALOG[] = {
     {"COOL_EXEC",     "CLOCK CRYSTAL",      "All program cooldowns -10% permanently", 500, 4, ItemKind::Upgrade},
     {"REVEAL_MAP",    "SHADOW SCANNER",     "Reveals all node names and types on map (still must unlock normally)", 1500, 1, ItemKind::Upgrade},
     // ----- Hull skins (cosmetic) -----
-    {"HULL_RAPTOR",   "RAPTOR HULL",        "Swept-wing interceptor silhouette",       600, 1, ItemKind::Hull},
-    {"HULL_MANTIS",   "MANTIS HULL",        "Forward-claw insectoid geometry",         600, 1, ItemKind::Hull},
-    {"HULL_BLADE",    "BLADE HULL",         "Ultra-thin knife silhouette",             600, 1, ItemKind::Hull},
-    {"HULL_BATTLE",   "BATTLEFRAME HULL",   "Heavy armored wide-delta frame",          600, 1, ItemKind::Hull},
+    {"HULL_RAPTOR",   "SIGNAL KNIFE",       "Swept-wing interceptor. Fast. Fragile.",  600, 1, ItemKind::Hull},
+    {"HULL_MANTIS",   "STRIKE FRAME",       "Forward-claw gunship. Hits hard.",        600, 1, ItemKind::Hull},
+    {"HULL_BLADE",    "GHOST WIRE",         "Knife silhouette. Kills in one pass.",    600, 1, ItemKind::Hull},
+    {"HULL_BATTLE",   "IRON COFFIN",        "Heavy armored delta. Slow. Survives.",    600, 1, ItemKind::Hull},
 };
 static constexpr int CATALOG_SIZE = (int)(sizeof(SHOP_CATALOG) / sizeof(SHOP_CATALOG[0]));
 

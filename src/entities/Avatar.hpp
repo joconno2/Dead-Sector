@@ -7,6 +7,27 @@ class Projectile;
 
 enum class HullType { Delta, Raptor, Mantis, Blade, Battle };
 
+// Per-hull stat multipliers and metadata
+struct HullStats {
+    float       thrustMult    = 1.f;
+    float       speedMult     = 1.f;
+    float       rotMult       = 1.f;
+    float       projSpeedMult = 1.f;
+    float       radiusMult    = 1.f;
+    int         startingAmmo  = 30;
+    int         extraLives    = 0;
+    const char* id            = "DELTA";
+    const char* name          = "GHOST RUNNER";
+    const char* flavor        = "Standard-issue black-market vessel. No surprises.";
+    // Unlock thresholds (0 = always unlocked)
+    int         runsRequired  = 0;
+    int         killsRequired = 0;
+    bool        needsWin      = false;
+};
+
+HullStats             statsForHull(HullType hull);
+std::vector<Vec2>     hullVerts(HullType hull);   // shared geometry used by render and UI
+
 // Resolve hull type from a save-data string ID
 inline HullType hullFromString(const std::string& s) {
     if (s == "RAPTOR")  return HullType::Raptor;
@@ -39,4 +60,7 @@ public:
 
     // Mod effects
     int   extraLives     = 0;
+
+    // Hull-specific multipliers (read by CombatScene for thrust/rot/proj)
+    HullStats hullStats;
 };

@@ -98,6 +98,16 @@ private:
 
     AudioSystem* m_audio = nullptr;  // borrowed from SceneContext
 
+    // Pause menu
+    bool  m_paused       = false;
+    int   m_pauseCursor  = 0;   // 0=Resume 1=MusicVol 2=SfxVol 3=QuitToMenu
+    float m_pauseTime    = 0.f;
+    int   m_pauseMusicVol = 80;
+    int   m_pauseSfxVol   = 80;
+
+    void renderPauseOverlay(SceneContext& ctx) const;
+    void pauseChangeVolume(int item, int delta, SceneContext& ctx);
+
     void setupCollisionCallback(SceneContext& ctx);
     void resetGame(SceneContext& ctx);
     void handleCollisions();

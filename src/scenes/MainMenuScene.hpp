@@ -10,7 +10,7 @@ public:
     void render(SceneContext& ctx)                     override;
 
 private:
-    enum class MenuItem { NewRun = 0, Endless, Shop, Quit, COUNT };
+    enum class MenuItem { NewRun = 0, Endless, Shop, Settings, Quit, COUNT };
 
     MenuItem m_cursor = MenuItem::NewRun;
     float    m_time   = 0.f;

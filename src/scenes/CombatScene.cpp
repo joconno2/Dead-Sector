@@ -5,14 +5,17 @@
 #include "GameOverScene.hpp"
 #include "NodeCompleteScene.hpp"
 #include "RunSummaryScene.hpp"
+#include "VictoryScene.hpp"
 #include "core/Constants.hpp"
 #include "core/SaveSystem.hpp"
 #include "systems/ModSystem.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
+#include "renderer/BuildChart.hpp"
 #include "math/Vec2.hpp"
 
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -47,6 +50,12 @@ void CombatScene::onEnter(SceneContext& ctx) {
     if (m_audio)
         m_audio->playMusic("assets/music/Karl Casey - Fortress.mp3");
 
+    m_paused      = false;
+    m_pauseCursor = 0;
+    m_pauseTime   = 0.f;
+    m_pauseMusicVol = ctx.saveData ? ctx.saveData->musicVolume : 80;
+    m_pauseSfxVol   = ctx.saveData ? ctx.saveData->sfxVolume  : 80;
+
     setupCollisionCallback(ctx);
     resetGame(ctx);
 
@@ -54,7 +63,7 @@ void CombatScene::onEnter(SceneContext& ctx) {
     if (m_avatar) {
         int lives = ctx.mods ? ctx.mods->startingExtraLives() : 0;
         if (ctx.saveData) lives += ctx.saveData->purchaseCount("EXTRA_LIFE");
-        m_avatar->extraLives = lives;
+        m_avatar->extraLives += lives; // hull base lives already set in resetGame
     }
 
     // Trace tick rate: base × TRACE_SLOW shop stacks × Ghost Protocol mod
@@ -225,6 +234,10 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_avatar = std::make_unique<Avatar>(
         Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f, hull);
 
+    // Apply hull-specific base extra lives (mod/shop bonuses added in onEnter)
+    if (m_avatar)
+        m_avatar->extraLives = m_avatar->hullStats.extraLives;
+
     // Generate walls (not for endless — walls are per-node, seeded by nodeId)
     if (!m_config.endless && m_config.nodeId >= 0) {
         m_walls.generate(m_config.tier, m_config.nodeId);
@@ -293,7 +306,83 @@ void CombatScene::spawnMines(int tier, int nodeId) {
 // Input
 // ---------------------------------------------------------------------------
 
-void CombatScene::handleEvent(SDL_Event& ev, SceneContext&) { (void)ev; }
+void CombatScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
+    // Toggle pause on ESC / Start
+    bool togglePause = false;
+    if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE)
+        togglePause = true;
+    else if (ev.type == SDL_CONTROLLERBUTTONDOWN &&
+             ev.cbutton.button == SDL_CONTROLLER_BUTTON_START)
+        togglePause = true;
+
+    if (togglePause) {
+        m_paused = !m_paused;
+        if (!m_paused) { // on resume, save any volume changes
+            if (ctx.saveData) {
+                ctx.saveData->musicVolume = m_pauseMusicVol;
+                ctx.saveData->sfxVolume   = m_pauseSfxVol;
+                SaveSystem::save(*ctx.saveData);
+            }
+        }
+        return;
+    }
+
+    if (!m_paused) return;
+
+    // Pause menu navigation
+    constexpr int PAUSE_ITEMS = 4; // Resume, MusicVol, SfxVol, QuitToMenu
+    bool up = false, down = false, left = false, right = false, confirm = false;
+
+    if (ev.type == SDL_KEYDOWN) {
+        switch (ev.key.keysym.sym) {
+        case SDLK_UP:   case SDLK_w: up      = true; break;
+        case SDLK_DOWN: case SDLK_s: down    = true; break;
+        case SDLK_LEFT: case SDLK_a: left    = true; break;
+        case SDLK_RIGHT:case SDLK_d: right   = true; break;
+        case SDLK_RETURN: case SDLK_SPACE: confirm = true; break;
+        default: break;
+        }
+    } else if (ev.type == SDL_CONTROLLERBUTTONDOWN) {
+        switch (ev.cbutton.button) {
+        case SDL_CONTROLLER_BUTTON_DPAD_UP:    up      = true; break;
+        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:  down    = true; break;
+        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:  left    = true; break;
+        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: right   = true; break;
+        case SDL_CONTROLLER_BUTTON_A:          confirm = true; break;
+        case SDL_CONTROLLER_BUTTON_B:          // B = resume
+            m_paused = false;
+            if (ctx.saveData) {
+                ctx.saveData->musicVolume = m_pauseMusicVol;
+                ctx.saveData->sfxVolume   = m_pauseSfxVol;
+                SaveSystem::save(*ctx.saveData);
+            }
+            return;
+        default: break;
+        }
+    }
+
+    if (up)   m_pauseCursor = (m_pauseCursor - 1 + PAUSE_ITEMS) % PAUSE_ITEMS;
+    if (down) m_pauseCursor = (m_pauseCursor + 1) % PAUSE_ITEMS;
+    if (left || right) pauseChangeVolume(m_pauseCursor, left ? -1 : +1, ctx);
+
+    if (confirm) {
+        if (m_pauseCursor == 0) { // Resume
+            m_paused = false;
+            if (ctx.saveData) {
+                ctx.saveData->musicVolume = m_pauseMusicVol;
+                ctx.saveData->sfxVolume   = m_pauseSfxVol;
+                SaveSystem::save(*ctx.saveData);
+            }
+        } else if (m_pauseCursor == 3) { // Quit to menu
+            if (ctx.saveData) {
+                ctx.saveData->musicVolume = m_pauseMusicVol;
+                ctx.saveData->sfxVolume   = m_pauseSfxVol;
+            }
+            ctx.scenes->replace(std::make_unique<RunSummaryScene>(
+                m_score, m_iceKilled, ctx.runNodes, false));
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Update
@@ -301,6 +390,7 @@ void CombatScene::handleEvent(SDL_Event& ev, SceneContext&) { (void)ev; }
 
 void CombatScene::update(float dt, SceneContext& ctx) {
     if (m_complete) return;
+    if (m_paused) { m_pauseTime += dt; return; }
 
     // Real-time meta effects (shake, slow-mo, boss death transition)
     const float realDt = dt;
@@ -309,11 +399,13 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         m_bossDeathTimer -= realDt;
         dt *= 0.10f;   // slow-mo during boss death sequence
         if (m_bossDeathTimer <= 0.f) {
-            // Transition to node complete
+            // Boss killed — Victory!
             m_complete = true;
             ctx.runNodes++;
-            ctx.scenes->replace(std::make_unique<NodeCompleteScene>(
-                m_config.nodeId, m_score, m_iceKilled, m_config.sweepTarget, false, 0));
+            HullType hull = HullType::Delta;
+            if (ctx.saveData) hull = hullFromString(ctx.saveData->activeHull);
+            ctx.scenes->replace(std::make_unique<VictoryScene>(
+                m_score, m_iceKilled, ctx.runNodes, hull));
             return;
         }
     }
@@ -346,10 +438,11 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_B)) m_input.prog2 = true;
     }
 
-    float thrustMult  = ctx.mods ? ctx.mods->thrustMult()    : 1.f;
-    float rotMult     = ctx.mods ? ctx.mods->rotMult()       : 1.f;
-    float speedCapMult= ctx.mods ? ctx.mods->maxSpeedMult()  : 1.f;
-    float pSpeedMult  = ctx.mods ? ctx.mods->projSpeedMult() : 1.f;
+    const HullStats& hs = m_avatar ? m_avatar->hullStats : statsForHull(HullType::Delta);
+    float thrustMult  = hs.thrustMult    * (ctx.mods ? ctx.mods->thrustMult()    : 1.f);
+    float rotMult     = hs.rotMult       * (ctx.mods ? ctx.mods->rotMult()       : 1.f);
+    float speedCapMult= hs.speedMult     * (ctx.mods ? ctx.mods->maxSpeedMult()  : 1.f);
+    float pSpeedMult  = hs.projSpeedMult * (ctx.mods ? ctx.mods->projSpeedMult() : 1.f);
     float pRadMult    = ctx.mods ? ctx.mods->projRadiusMult(): 1.f;
     bool  splitRound  = ctx.mods ? ctx.mods->hasSplitRound() : false;
     bool  overcharge  = ctx.mods ? ctx.mods->hasOvercharge()  : false;
@@ -842,6 +935,9 @@ void CombatScene::render(SceneContext& ctx) {
     if (m_shakeTimer > 0.f)
         SDL_RenderSetViewport(ctx.renderer, nullptr);
 
+    if (m_paused)
+        renderPauseOverlay(ctx);
+
     SDL_RenderPresent(ctx.renderer);
 }
 
@@ -966,4 +1062,101 @@ void CombatScene::emitDeathFragments() {
     for (const auto& e : m_spawnerICE)
         if (!e->alive)
             m_fragments.emit(e->pos, Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G, Constants::COL_SPAWNER_B, 12, 18.f, 200.f);
+}
+
+// ---------------------------------------------------------------------------
+// Pause overlay
+// ---------------------------------------------------------------------------
+
+static std::string pauseVolBar(int vol) {
+    int filled = vol / 10;
+    std::string bar = "[";
+    for (int i = 0; i < 10; ++i) bar += (i < filled ? "=" : " ");
+    bar += "] " + std::to_string(vol) + "%";
+    return bar;
+}
+
+void CombatScene::pauseChangeVolume(int item, int delta, SceneContext& ctx) {
+    if (item == 1) {
+        m_pauseMusicVol = std::max(0, std::min(100, m_pauseMusicVol + delta * 10));
+        if (ctx.audio) ctx.audio->setMusicVolume(m_pauseMusicVol * MIX_MAX_VOLUME / 100);
+    } else if (item == 2) {
+        m_pauseSfxVol = std::max(0, std::min(100, m_pauseSfxVol + delta * 10));
+        if (ctx.audio) ctx.audio->setSfxVolume(m_pauseSfxVol * MIX_MAX_VOLUME / 100);
+    }
+}
+
+void CombatScene::renderPauseOverlay(SceneContext& ctx) const {
+    SDL_Renderer* r = ctx.renderer;
+    if (!r || !ctx.hud) return;
+
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+
+    // Dark translucent backdrop
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 170);
+    SDL_RenderFillRect(r, nullptr);
+
+    float pulse = 0.5f + 0.5f * std::sin(m_pauseTime * 3.f);
+
+    // Two-panel layout: left = menu, right = build chart
+    constexpr int MENU_W  = 340;
+    constexpr int CHART_W = 280;
+    constexpr int GAP     = 16;
+    constexpr int PANEL_H = 300;
+    constexpr int TOTAL_W = MENU_W + GAP + CHART_W;
+
+    int panelX = Constants::SCREEN_W / 2 - TOTAL_W / 2;
+    int panelY = Constants::SCREEN_H / 2 - PANEL_H / 2;
+    int chartX = panelX + MENU_W + GAP;
+
+    // Left menu panel
+    SDL_SetRenderDrawColor(r, 0, 14, 10, 230);
+    SDL_Rect menuBg = { panelX, panelY, MENU_W, PANEL_H };
+    SDL_RenderFillRect(r, &menuBg);
+    SDL_SetRenderDrawColor(r, 0, (Uint8)(180 + 60 * pulse), 120, 220);
+    SDL_RenderDrawRect(r, &menuBg);
+
+    SDL_Color titleCol = { 0, (Uint8)(210 + 45 * pulse), 150, 255 };
+    ctx.hud->drawLabel("// PAUSED //", panelX + 16, panelY + 14, titleCol);
+    SDL_SetRenderDrawColor(r, 0, 80, 60, 140);
+    SDL_RenderDrawLine(r, panelX+12, panelY+44, panelX+MENU_W-12, panelY+44);
+
+    struct Entry { const char* label; std::string value; };
+    Entry entries[] = {
+        { "RESUME",       "" },
+        { "MUSIC VOLUME", pauseVolBar(m_pauseMusicVol) },
+        { "SFX VOLUME",   pauseVolBar(m_pauseSfxVol)   },
+        { "QUIT TO MENU", "" },
+    };
+
+    int ry = panelY + 54;
+    for (int i = 0; i < 4; ++i) {
+        bool sel = (m_pauseCursor == i);
+        float p  = sel ? pulse : 0.f;
+        SDL_Color labelCol = sel ? SDL_Color{0,(Uint8)(200+40*p),(Uint8)(160+60*p),255}
+                                 : SDL_Color{70, 130, 100, 200};
+        SDL_Color valCol   = sel ? SDL_Color{220, 220, 80, 255}
+                                 : SDL_Color{150, 200, 80, 200};
+
+        if (sel) {
+            SDL_SetRenderDrawColor(r, 0, (Uint8)(30+15*p), (Uint8)(22+10*p), 120);
+            SDL_Rect row = { panelX+8, ry-3, MENU_W-16, 26 };
+            SDL_RenderFillRect(r, &row);
+        }
+
+        std::string lbl = sel ? ("> " + std::string(entries[i].label))
+                               : ("  " + std::string(entries[i].label));
+        ctx.hud->drawLabel(lbl.c_str(), panelX+16, ry, labelCol);
+        if (!entries[i].value.empty())
+            ctx.hud->drawLabel(entries[i].value.c_str(), panelX+200, ry, valCol);
+        ry += 44;
+    }
+
+    SDL_Color hintCol = { 50, 90, 70, 160 };
+    ctx.hud->drawLabel("ESC/START: resume  L/R: adjust vol",
+                       panelX+12, panelY+PANEL_H-22, hintCol);
+
+    // Right build chart panel
+    renderBuildChart(r, ctx.hud, ctx.mods, ctx.programs, ctx.saveData,
+                     pulse, chartX, panelY, CHART_W, PANEL_H);
 }

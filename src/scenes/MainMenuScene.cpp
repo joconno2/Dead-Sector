@@ -3,6 +3,8 @@
 #include "MapScene.hpp"
 #include "CombatScene.hpp"
 #include "ShopScene.hpp"
+#include "ShipSelectScene.hpp"
+#include "SettingsScene.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
 #include "world/NodeMap.hpp"
@@ -65,9 +67,10 @@ static const char* MENU_LABELS[] = {
     "NEW RUN",
     "ENDLESS",
     "SHOP",
+    "SETTINGS",
     "QUIT",
 };
-static constexpr int MENU_COUNT = 4;
+static constexpr int MENU_COUNT = 5;
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -113,6 +116,9 @@ void MainMenuScene::selectCurrent(SceneContext& ctx) {
         case MenuItem::Endless: startEndless(ctx); break;
         case MenuItem::Shop:
             ctx.scenes->replace(std::make_unique<ShopScene>());
+            break;
+        case MenuItem::Settings:
+            ctx.scenes->replace(std::make_unique<SettingsScene>());
             break;
         case MenuItem::Quit:
             if (ctx.running) *ctx.running = false;
@@ -163,10 +169,8 @@ void MainMenuScene::startNewRun(SceneContext& ctx) {
 
     applyShopUpgrades(ctx);
 
-    if (ctx.nodeMap)
-        ctx.scenes->replace(std::make_unique<MapScene>(*ctx.nodeMap));
-    else if (ctx.running)
-        *ctx.running = false;
+    // Ship selection first; ShipSelectScene → MapScene → LoadoutScene → CombatScene
+    ctx.scenes->replace(std::make_unique<ShipSelectScene>());
 }
 
 void MainMenuScene::startEndless(SceneContext& ctx) {
@@ -183,15 +187,8 @@ void MainMenuScene::startEndless(SceneContext& ctx) {
 
     applyShopUpgrades(ctx);
 
-    NodeConfig cfg;
-    cfg.nodeId         = -1;
-    cfg.tier           = 1;
-    cfg.objective      = NodeObjective::Sweep;
-    cfg.sweepTarget    = 999999; // effectively never completes through normal objective
-    cfg.traceTickRate  = 0.17f;  // very slow
-    cfg.endless        = true;
-
-    ctx.scenes->replace(std::make_unique<CombatScene>(cfg));
+    // Ship selection first — ShipSelectScene(endless=true) launches CombatScene directly
+    ctx.scenes->replace(std::make_unique<ShipSelectScene>(true));
 }
 
 // ---------------------------------------------------------------------------

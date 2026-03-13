@@ -8,75 +8,101 @@
 // Hull geometry definitions
 // ---------------------------------------------------------------------------
 
-static std::vector<Vec2> hullVerts(HullType hull) {
+std::vector<Vec2> hullVerts(HullType hull) {
     switch (hull) {
+
     case HullType::Raptor:
-        // Swept-wing interceptor — aggressive forward-swept delta
+        // Forward-swept interceptor with canard fins near the nose.
+        // Both canards AND main wings reach ahead of the nose tip.
         return {
-            {  0.f, -35.f },   // needle nose
-            {  4.f, -13.f },   // leading chine right
-            { 22.f,   0.f },   // right wing tip (far swept)
-            { 12.f,   9.f },   // right wing root notch
-            {  5.f,  20.f },   // right rear fin
-            {  3.f,  28.f },   // right engine nub
-            {  0.f,  22.f },   // tail indent
-            { -3.f,  28.f },   // left engine nub
-            { -5.f,  20.f },   // left rear fin
-            {-12.f,   9.f },   // left wing root notch
-            {-22.f,   0.f },   // left wing tip
-            { -4.f, -13.f },   // leading chine left
+            {  0.f, -34.f },   // needle nose
+            {  3.f, -24.f },   // right cockpit
+            { 14.f, -32.f },   // right canard tip (forward fin, ahead of nose)
+            {  8.f, -14.f },   // right canard base rejoins fuselage
+            { 28.f, -30.f },   // right main wing tip (far-forward swept)
+            { 22.f,  -2.f },   // right wing trailing root
+            {  8.f,   8.f },   // right hip
+            {  5.f,  22.f },   // right engine pod
+            {  3.f,  30.f },   // right exhaust
+            {  0.f,  24.f },   // tail V-notch
+            { -3.f,  30.f },   // left exhaust
+            { -5.f,  22.f },   // left engine pod
+            { -8.f,   8.f },   // left hip
+            {-22.f,  -2.f },   // left wing trailing root
+            {-28.f, -30.f },   // left main wing tip
+            { -8.f, -14.f },   // left canard base
+            {-14.f, -32.f },   // left canard tip
+            { -3.f, -24.f },   // left cockpit
         };
+
     case HullType::Mantis:
-        // Insectoid forward-claws
+        // Praying mantis — claws extend well FORWARD of the head, narrow waist, wide hips.
         return {
-            {  0.f, -28.f },   // nose
-            {  8.f, -20.f },   // right claw inner
-            { 22.f, -26.f },   // right claw tip (forward-pointing)
-            { 18.f,  -8.f },   // right claw base
-            { 14.f,   6.f },   // right mid
-            {  5.f,  24.f },   // right engine
-            {  2.f,  30.f },   // right nub
-            {  0.f,  22.f },   // tail center
-            { -2.f,  30.f },   // left nub
-            { -5.f,  24.f },   // left engine
-            {-14.f,   6.f },   // left mid
-            {-18.f,  -8.f },   // left claw base
-            {-22.f, -26.f },   // left claw tip
-            { -8.f, -20.f },   // left claw inner
+            {  0.f, -22.f },   // head
+            {  4.f, -16.f },   // right neck
+            { 10.f, -20.f },   // right claw arm shoulder
+            { 32.f, -34.f },   // right claw tip (far forward and wide)
+            { 26.f,  -4.f },   // right claw elbow fold
+            { 14.f,   6.f },   // right thorax shoulder
+            {  5.f,  18.f },   // right hip
+            {  9.f,  28.f },   // right engine
+            {  3.f,  36.f },   // right exhaust nub
+            {  0.f,  28.f },   // abdomen tail
+            { -3.f,  36.f },   // left exhaust nub
+            { -9.f,  28.f },   // left engine
+            { -5.f,  18.f },   // left hip
+            {-14.f,   6.f },   // left thorax shoulder
+            {-26.f,  -4.f },   // left claw elbow fold
+            {-32.f, -34.f },   // left claw tip
+            {-10.f, -20.f },   // left claw arm shoulder
+            { -4.f, -16.f },   // left neck
         };
-    case HullType::Blade:
-        // Ultra-thin knife silhouette
-        return {
-            {  0.f, -38.f },   // very sharp nose
-            {  3.f,  -6.f },   // right chine
-            { 10.f,   8.f },   // right cut
-            {  4.f,  18.f },   // right rear
-            {  2.f,  30.f },   // right nub
-            {  0.f,  24.f },   // tail
-            { -2.f,  30.f },   // left nub
-            { -4.f,  18.f },   // left rear
-            {-10.f,   8.f },   // left cut
-            { -3.f,  -6.f },   // left chine
-        };
+
     case HullType::Battle:
-        // Heavy armored delta — wide, angular, imposing
+        // Coffin shape: very wide at the head/shoulders, sides angle inward,
+        // noticeably narrower at the foot end — unmistakable funeral casket outline.
         return {
-            {  0.f, -24.f },   // nose
-            {  9.f, -18.f },   // right shoulder
-            { 24.f,  -4.f },   // right wing tip (wide)
-            { 24.f,   8.f },   // right wing trailing edge
-            { 15.f,  14.f },   // right flank
-            {  8.f,  22.f },   // right engine pod
-            {  4.f,  28.f },   // right nub
-            {  0.f,  24.f },   // tail indent
-            { -4.f,  28.f },   // left nub
-            { -8.f,  22.f },   // left engine pod
-            {-15.f,  14.f },   // left flank
-            {-24.f,   8.f },   // left wing trailing edge
-            {-24.f,  -4.f },   // left wing tip
-            { -9.f, -18.f },   // left shoulder
+            {  7.f, -28.f },   // right head corner (flat top, close together)
+            { 28.f, -18.f },   // right shoulder — widest point, like coffin shoulders
+            { 30.f,  -4.f },   // right upper body
+            { 24.f,  10.f },   // right waist (sides converge toward foot)
+            { 16.f,  20.f },   // right lower body
+            { 10.f,  26.f },   // right foot corner
+            { 14.f,  34.f },   // right exhaust nub
+            {  0.f,  30.f },   // foot center (narrower than head)
+            {-14.f,  34.f },   // left exhaust nub
+            {-10.f,  26.f },   // left foot corner
+            {-16.f,  20.f },   // left lower body
+            {-24.f,  10.f },   // left waist
+            {-30.f,  -4.f },   // left upper body
+            {-28.f, -18.f },   // left shoulder
+            { -7.f, -28.f },   // left head corner
+            // closes with flat top head edge — 14px wide at head vs ~28px at shoulders
         };
-    default: // Delta — original design
+
+    case HullType::Blade:
+        // Scalpel silhouette: extreme needle nose, almost zero body width,
+        // one dramatic swept-delta wing spike mid-body, tiny split tail fins.
+        return {
+            {  0.f, -44.f },   // absurd razor tip
+            {  1.f, -22.f },   // right near-nose (1px wide — nearly invisible from front)
+            {  3.f,  -6.f },   // right body
+            { 22.f,   6.f },   // right wing spike (larger, more dramatic delta)
+            {  5.f,  16.f },   // right back to narrow waist
+            {  4.f,  28.f },   // right tail fin root
+            {  8.f,  36.f },   // right tail fin tip (split fins)
+            {  2.f,  34.f },   // right tail fin inner
+            {  0.f,  30.f },   // tail center notch
+            { -2.f,  34.f },   // left tail fin inner
+            { -8.f,  36.f },   // left tail fin tip
+            { -4.f,  28.f },   // left tail fin root
+            { -5.f,  16.f },   // left back to narrow waist
+            {-22.f,   6.f },   // left wing spike
+            { -3.f,  -6.f },   // left body
+            { -1.f, -22.f },   // left near-nose
+        };
+
+    default: // Delta — original design, leave unchanged
         return {
             {  0.f, -30.f },   // sharp nose spike
             {  5.f, -11.f },   // right leading chine
@@ -95,12 +121,80 @@ static std::vector<Vec2> hullVerts(HullType hull) {
 }
 
 // ---------------------------------------------------------------------------
+// Hull stats table
+// ---------------------------------------------------------------------------
+
+HullStats statsForHull(HullType hull) {
+    switch (hull) {
+    case HullType::Raptor: {
+        HullStats s;
+        s.id = "RAPTOR"; s.name = "SIGNAL KNIFE";
+        s.flavor        = "Built for escape. Never meant to fight.";
+        s.thrustMult    = 1.30f;
+        s.speedMult     = 1.40f;
+        s.rotMult       = 1.40f;
+        s.projSpeedMult = 0.85f;
+        s.radiusMult    = 0.90f;
+        s.startingAmmo  = 20;
+        s.runsRequired  = 3;
+        return s;
+    }
+    case HullType::Mantis: {
+        HullStats s;
+        s.id = "MANTIS"; s.name = "STRIKE FRAME";
+        s.flavor        = "Oversized railcannon bolted to a barely-legal hull.";
+        s.thrustMult    = 0.85f;
+        s.speedMult     = 0.85f;
+        s.rotMult       = 0.85f;
+        s.projSpeedMult = 1.50f;
+        s.startingAmmo  = 40;
+        s.killsRequired = 50;
+        return s;
+    }
+    case HullType::Battle: {
+        HullStats s;
+        s.id = "BATTLE"; s.name = "IRON COFFIN";
+        s.flavor        = "Walks slow. Takes everything. Eventually wins.";
+        s.thrustMult    = 0.75f;
+        s.speedMult     = 0.70f;
+        s.rotMult       = 0.75f;
+        s.projSpeedMult = 0.90f;
+        s.radiusMult    = 1.10f;
+        s.startingAmmo  = 50;
+        s.extraLives    = 1;
+        s.killsRequired = 200;
+        return s;
+    }
+    case HullType::Blade: {
+        HullStats s;
+        s.id = "BLADE"; s.name = "GHOST WIRE";
+        s.flavor        = "Kills in one pass. Counted corpses, never regrets.";
+        s.thrustMult    = 1.50f;
+        s.speedMult     = 1.60f;
+        s.rotMult       = 1.60f;
+        s.projSpeedMult = 1.20f;
+        s.radiusMult    = 0.70f;
+        s.startingAmmo  = 15;
+        s.needsWin      = true;
+        return s;
+    }
+    default: {
+        HullStats s;
+        s.id = "DELTA"; s.name = "GHOST RUNNER";
+        s.flavor = "Standard-issue black-market vessel. No surprises.";
+        return s;
+    }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
 
 Avatar::Avatar(float startX, float startY, HullType hull) {
+    hullStats = statsForHull(hull);
     pos    = {startX, startY};
-    radius = Constants::AVATAR_RADIUS;
+    radius = Constants::AVATAR_RADIUS * hullStats.radiusMult;
     type   = EntityType::Avatar;
     m_localVerts = hullVerts(hull);
     transformVerts();

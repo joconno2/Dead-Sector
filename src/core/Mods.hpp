@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include "Programs.hpp"  // for AbilityType + abilityTypeColor
 
 enum class ModRarity   : uint8_t { Common, Uncommon, Rare, Legendary };
 enum class ModCategory : uint8_t { Chassis, Weapon, Neural };
@@ -44,37 +45,38 @@ struct ModDef {
     const char*  desc;
     ModCategory  category;
     ModRarity    rarity;
-    ModType      type;      // Stat (no slot) vs Passive (1 of 3 slots)
+    ModType      type;        // Stat (no slot) vs Passive (1 of 3 slots)
     bool         stackable;
+    AbilityType  abilityType; // drives card color theme
 };
 
 inline constexpr std::array<ModDef, static_cast<int>(ModID::COUNT)> MOD_DEFS = {{
-    // Chassis — Stat (stackable, no slot cost)
-    { ModID::KINETIC_CORE,     "KINETIC CORE",     "Thrust force +40%",               ModCategory::Chassis, ModRarity::Common,    ModType::Stat,    true  },
-    { ModID::GYRO_STAB,        "GYRO STAB",        "Rotation speed +40%",             ModCategory::Chassis, ModRarity::Common,    ModType::Stat,    true  },
-    { ModID::INERTIA_DAMP,     "INERTIA DAMP",     "Max velocity +25%",               ModCategory::Chassis, ModRarity::Common,    ModType::Stat,    true  },
+    // Chassis — Stat
+    { ModID::KINETIC_CORE,     "KINETIC CORE",     "Thrust force +40%",               ModCategory::Chassis, ModRarity::Common,    ModType::Stat,    true,  AbilityType::Stealth  },
+    { ModID::GYRO_STAB,        "GYRO STAB",        "Rotation speed +40%",             ModCategory::Chassis, ModRarity::Common,    ModType::Stat,    true,  AbilityType::Stealth  },
+    { ModID::INERTIA_DAMP,     "INERTIA DAMP",     "Max velocity +25%",               ModCategory::Chassis, ModRarity::Common,    ModType::Stat,    true,  AbilityType::Stealth  },
     // Chassis — Passive
-    { ModID::ADAPTIVE_ARMOR,   "ADAPT. ARMOR",     "Absorb 1 lethal hit per node",    ModCategory::Chassis, ModRarity::Uncommon,  ModType::Passive, false },
-    { ModID::HULL_PLATING,     "HULL PLATING",     "+1 extra life at node start",     ModCategory::Chassis, ModRarity::Rare,      ModType::Stat,    true  },
-    { ModID::PHASE_FRAME,      "PHASE FRAME",      "Each kill: 0.5s invulnerability", ModCategory::Chassis, ModRarity::Rare,      ModType::Passive, false },
-    { ModID::REACTIVE_PLATING, "REACT. PLATING",   "Hit: 150px damage shockwave",     ModCategory::Chassis, ModRarity::Rare,      ModType::Passive, false },
+    { ModID::ADAPTIVE_ARMOR,   "ADAPT. ARMOR",     "Absorb 1 lethal hit per node",    ModCategory::Chassis, ModRarity::Uncommon,  ModType::Passive, false, AbilityType::Defense  },
+    { ModID::HULL_PLATING,     "HULL PLATING",     "+1 extra life at node start",     ModCategory::Chassis, ModRarity::Rare,      ModType::Stat,    true,  AbilityType::Defense  },
+    { ModID::PHASE_FRAME,      "PHASE FRAME",      "Each kill: 0.5s invulnerability", ModCategory::Chassis, ModRarity::Rare,      ModType::Passive, false, AbilityType::Defense  },
+    { ModID::REACTIVE_PLATING, "REACT. PLATING",   "Hit: 150px damage shockwave",     ModCategory::Chassis, ModRarity::Rare,      ModType::Passive, false, AbilityType::Defense  },
     // Weapon — Stat
-    { ModID::HOT_BARREL,       "HOT BARREL",       "Projectile speed +30%",           ModCategory::Weapon,  ModRarity::Common,    ModType::Stat,    true  },
+    { ModID::HOT_BARREL,       "HOT BARREL",       "Projectile speed +30%",           ModCategory::Weapon,  ModRarity::Common,    ModType::Stat,    true,  AbilityType::Offense  },
     // Weapon — Passive
-    { ModID::WIDE_BEAM,        "WIDE BEAM",        "Hit radius +100%  (double)",      ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false },
-    { ModID::SPLIT_ROUND,      "SPLIT ROUND",      "Every 3rd shot fires a twin",     ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false },
-    { ModID::OVERCHARGE,       "OVERCHARGE",       "Every 5th shot: burst of 3",      ModCategory::Weapon,  ModRarity::Rare,      ModType::Passive, false },
-    { ModID::NOVA_BURST,       "NOVA BURST",       "Kill: 4-shot cross nova",         ModCategory::Weapon,  ModRarity::Rare,      ModType::Passive, false },
-    { ModID::RICOCHET,         "RICOCHET",         "Shots bounce off screen edges",   ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false },
-    { ModID::CHAIN_FIRE,       "CHAIN FIRE",       "Kill: instant shot at next ICE",  ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false },
-    { ModID::PHANTOM_ROUND,    "PHANTOM ROUND",    "Shots pierce through all ICE",    ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false },
-    { ModID::CRIT_MATRIX,      "CRIT MATRIX",      "30% chance: shot survives kill",  ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false },
+    { ModID::WIDE_BEAM,        "WIDE BEAM",        "Hit radius +100%  (double)",      ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false, AbilityType::Offense  },
+    { ModID::SPLIT_ROUND,      "SPLIT ROUND",      "Every 3rd shot fires a twin",     ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false, AbilityType::Offense  },
+    { ModID::OVERCHARGE,       "OVERCHARGE",       "Every 5th shot: burst of 3",      ModCategory::Weapon,  ModRarity::Rare,      ModType::Passive, false, AbilityType::Offense  },
+    { ModID::NOVA_BURST,       "NOVA BURST",       "Kill: 4-shot cross nova",         ModCategory::Weapon,  ModRarity::Rare,      ModType::Passive, false, AbilityType::Offense  },
+    { ModID::RICOCHET,         "RICOCHET",         "Shots bounce off screen edges",   ModCategory::Weapon,  ModRarity::Uncommon,  ModType::Passive, false, AbilityType::Offense  },
+    { ModID::CHAIN_FIRE,       "CHAIN FIRE",       "Kill: instant shot at next ICE",  ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Offense  },
+    { ModID::PHANTOM_ROUND,    "PHANTOM ROUND",    "Shots pierce through all ICE",    ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Offense },
+    { ModID::CRIT_MATRIX,      "CRIT MATRIX",      "30% chance: shot survives kill",  ModCategory::Weapon,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Offense },
     // Neural — Stat
-    { ModID::COLD_EXEC,        "COLD EXEC",        "Program cooldowns -25%",          ModCategory::Neural,  ModRarity::Common,    ModType::Stat,    true  },
-    { ModID::TRACE_SINK,       "TRACE SINK",       "Each kill reduces trace 6%",      ModCategory::Neural,  ModRarity::Uncommon,  ModType::Stat,    true  },
+    { ModID::COLD_EXEC,        "COLD EXEC",        "Program cooldowns -25%",          ModCategory::Neural,  ModRarity::Common,    ModType::Stat,    true,  AbilityType::Neural  },
+    { ModID::TRACE_SINK,       "TRACE SINK",       "Each kill reduces trace 6%",      ModCategory::Neural,  ModRarity::Uncommon,  ModType::Stat,    true,  AbilityType::Neural  },
     // Neural — Passive
-    { ModID::GHOST_PROTOCOL,   "GHOST PROTOCOL",   "Trace tick rate -40%",            ModCategory::Neural,  ModRarity::Rare,      ModType::Passive, false },
-    { ModID::NEURAL_OVERCLOCK, "NEURAL OVERCLOCK", "All stat multipliers +20%",       ModCategory::Neural,  ModRarity::Legendary, ModType::Passive, false },
+    { ModID::GHOST_PROTOCOL,   "GHOST PROTOCOL",   "Trace tick rate -40%",            ModCategory::Neural,  ModRarity::Rare,      ModType::Passive, false, AbilityType::Stealth },
+    { ModID::NEURAL_OVERCLOCK, "NEURAL OVERCLOCK", "All stat multipliers +20%",       ModCategory::Neural,  ModRarity::Legendary, ModType::Passive, false, AbilityType::Neural  },
 }};
 
 inline const ModDef& getModDef(ModID id) {
