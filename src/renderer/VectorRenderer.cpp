@@ -26,15 +26,45 @@ void VectorRenderer::drawGlowLine(Vec2 a, Vec2 b, GlowColor col) {
     // Perpendicular unit vector for parallel offset passes
     Vec2 perp = Vec2{-delta.y / len, delta.x / len};
 
-    // Outer halo (±2px)
-    drawLine(a + perp * 2.f, b + perp * 2.f, col.r, col.g, col.b, 18);
-    drawLine(a - perp * 2.f, b - perp * 2.f, col.r, col.g, col.b, 18);
+    // Sub-pixel stepped Gaussian halo — 0.5px increments reduce aliasing staircase
+    // because each step rounds to a different pixel on diagonal lines, distributing
+    // the energy smoothly rather than landing on the same pixel column repeatedly.
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_ADD);
 
-    // Soft glow (±1px)
-    drawLine(a + perp, b + perp, col.r, col.g, col.b, 55);
-    drawLine(a - perp, b - perp, col.r, col.g, col.b, 55);
+    // Gaussian bloom — integer steps starting at 1px so each pass hits distinct pixels.
+    // 0.5px sub-pixel steps are wasted (SDL rounds to the same pixel as the core).
+    // Wide extent (7px) with strong per-step alpha makes the falloff clearly visible.
+    struct { float r; uint8_t a; } levels[] = {
+        { 1.f, 140 },
+        { 2.f,  90 },
+        { 3.f,  55 },
+        { 4.f,  32 },
+        { 5.f,  18 },
+        { 6.f,  10 },
+        { 7.f,   5 },
+    };
+    for (auto& lv : levels) {
+        drawLine(a + perp * lv.r, b + perp * lv.r, col.r, col.g, col.b, lv.a);
+        drawLine(a - perp * lv.r, b - perp * lv.r, col.r, col.g, col.b, lv.a);
+    }
 
-    // Bright core
+    // White-hot core at full brightness
+    drawLine(a, b, col.r, col.g, col.b, 255);
+}
+
+void VectorRenderer::drawGlowLineThin(Vec2 a, Vec2 b, GlowColor col) {
+    Vec2 delta = (b - a);
+    float len = delta.length();
+    if (len < 0.001f) return;
+    Vec2 perp = Vec2{-delta.y / len, delta.x / len};
+
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_ADD);
+    drawLine(a + perp * 1.f, b + perp * 1.f, col.r, col.g, col.b, 80);
+    drawLine(a - perp * 1.f, b - perp * 1.f, col.r, col.g, col.b, 80);
+    drawLine(a + perp * 2.f, b + perp * 2.f, col.r, col.g, col.b, 35);
+    drawLine(a - perp * 2.f, b - perp * 2.f, col.r, col.g, col.b, 35);
+    drawLine(a + perp * 3.f, b + perp * 3.f, col.r, col.g, col.b, 12);
+    drawLine(a - perp * 3.f, b - perp * 3.f, col.r, col.g, col.b, 12);
     drawLine(a, b, col.r, col.g, col.b, 255);
 }
 
@@ -47,7 +77,7 @@ void VectorRenderer::drawGlowPoly(const std::vector<Vec2>& verts, GlowColor colo
 
 void VectorRenderer::drawGrid(uint8_t r, uint8_t g, uint8_t b) {
     constexpr int SPACING = 80;
-    SDL_SetRenderDrawColor(m_renderer, r, g, b, 28);
+    SDL_SetRenderDrawColor(m_renderer, r, g, b, 52);
     for (int x = 0; x <= Constants::SCREEN_W; x += SPACING)
         SDL_RenderDrawLine(m_renderer, x, 0, x, Constants::SCREEN_H);
     for (int y = 0; y <= Constants::SCREEN_H; y += SPACING)

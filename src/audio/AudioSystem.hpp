@@ -14,8 +14,11 @@ public:
 
     // Music (streamed — one track at a time)
     void playMusic(const std::string& path, int loops = -1);
-    void stopMusic();
+    void playMusicFrom(const std::string& path, double startPos, int fadeMs = 800, int loops = -1);
+    void stopMusic();  // fades out over 600ms
     void setMusicVolume(int vol); // 0–128
+    // Returns true if the given track is currently streaming
+    bool isPlaying(const std::string& path) const { return Mix_PlayingMusic() && m_currentPath == path; }
 
     // One-shot synthesised SFX (pre-generated at init)
     void playShot();
@@ -26,9 +29,10 @@ public:
     bool ready() const { return m_ready; }
 
 private:
-    bool      m_ready   = false;
-    Mix_Music* m_music  = nullptr;
-    int        m_sfxVol = 80;
+    bool        m_ready       = false;
+    Mix_Music*  m_music       = nullptr;
+    std::string m_currentPath;
+    int         m_sfxVol      = 80;
 
     Mix_Chunk* m_sndShot      = nullptr;
     Mix_Chunk* m_sndExplosion = nullptr;

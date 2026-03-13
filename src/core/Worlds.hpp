@@ -26,19 +26,19 @@ inline const WorldDef& worldDef(int id) {
         {
             "SECTOR ALPHA", "ENTRY POINT",
             "Tier-1 ICE. Standard countermeasures.",
-            { 15,  50,  80,    0, 190, 220,   255,  60, 120 },
+            { 20,  70, 115,    0, 210, 245,   255,  70, 140 },
             0, 1.0f
         },
         {
             "DEEP NET", "HOSTILE TERRITORY",
             "Adaptive ICE. Signal has been localized.",
-            { 40,  10,  80,  180,  60, 255,   200,  40, 255 },
+            { 55,  15, 110,  200,  70, 255,   215,  50, 255 },
             1, 1.4f
         },
         {
             "THE CORE", "POINT OF NO RETURN",
             "Maximum ICE density. No retreat option.",
-            { 80,  10,  10,  255,  80,  30,   255, 200,  30 },
+            { 115,  15,  15,  255,  95,  35,   255, 210,  35 },
             2, 1.8f
         },
     };

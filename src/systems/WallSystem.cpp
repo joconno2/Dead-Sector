@@ -110,41 +110,33 @@ bool WallSystem::resolveCircle(Vec2& pos, Vec2& vel, float radius, float energyL
 // ---------------------------------------------------------------------------
 
 void WallSystem::render(VectorRenderer* vr, uint8_t r, uint8_t g, uint8_t b) const {
-    GlowColor col   = { r, g, b };
-    GlowColor faint = { (uint8_t)(r/3), (uint8_t)(g/3), (uint8_t)(b/3) };
+    GlowColor col  = { r, g, b };
+    GlowColor core = { (uint8_t)std::min(255, (int)r + 60),
+                       (uint8_t)std::min(255, (int)g + 80),
+                       (uint8_t)std::min(255, (int)b + 80) };
 
     for (const auto& w : m_walls) {
         Vec2 seg  = w.b - w.a;
         float len = seg.length();
         if (len < 0.001f) continue;
         Vec2 dir  = seg * (1.f / len);
-        Vec2 perp = { -dir.y, dir.x };
 
-        // Outer soft glow (offset lines parallel to wall)
-        Vec2 off1 = perp * 3.f;
-        Vec2 off2 = perp * -3.f;
-        vr->drawGlowLine(w.a + off1, w.b + off1, faint);
-        vr->drawGlowLine(w.a + off2, w.b + off2, faint);
-
-        // Main wall line
-        vr->drawGlowLine(w.a, w.b, col);
+        // Main wall — tight glow so walls don't appear fuzzy
+        vr->drawGlowLineThin(w.a, w.b, col);
 
         // Bright core highlight
-        GlowColor core = { (uint8_t)std::min(255, (int)r + 60),
-                           (uint8_t)std::min(255, (int)g + 80),
-                           (uint8_t)std::min(255, (int)b + 80) };
         Vec2 inA = w.a + dir * 2.f;
         Vec2 inB = w.b - dir * 2.f;
         if ((inB - inA).length() > 4.f)
-            vr->drawGlowLine(inA, inB, core);
+            vr->drawGlowLineThin(inA, inB, core);
 
         // End-cap diamonds at each endpoint
         auto drawCap = [&](Vec2 c) {
             const float s = 5.f;
-            vr->drawGlowLine(c + Vec2{0,-s}, c + Vec2{ s, 0}, col);
-            vr->drawGlowLine(c + Vec2{ s, 0}, c + Vec2{0, s}, col);
-            vr->drawGlowLine(c + Vec2{0, s}, c + Vec2{-s, 0}, col);
-            vr->drawGlowLine(c + Vec2{-s, 0}, c + Vec2{0,-s}, col);
+            vr->drawGlowLineThin(c + Vec2{0,-s}, c + Vec2{ s, 0}, col);
+            vr->drawGlowLineThin(c + Vec2{ s, 0}, c + Vec2{0, s}, col);
+            vr->drawGlowLineThin(c + Vec2{0, s}, c + Vec2{-s, 0}, col);
+            vr->drawGlowLineThin(c + Vec2{-s, 0}, c + Vec2{0,-s}, col);
         };
         drawCap(w.a);
         drawCap(w.b);

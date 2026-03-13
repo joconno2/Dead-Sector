@@ -51,13 +51,19 @@ void CombatScene::onEnter(SceneContext& ctx) {
     }
 
     m_audio = ctx.audio;
-    if (m_audio)
+    // Combat music plays at 65% of user's preferred volume — the track is
+    // intrinsically loud and would otherwise drown out menu music by comparison.
+    int userMusicVol = ctx.saveData ? ctx.saveData->musicVolume : 80;
+    int combatVol    = userMusicVol * 65 / 100;
+    if (m_audio) {
+        m_audio->setMusicVolume(combatVol * MIX_MAX_VOLUME / 100);
         m_audio->playMusic("assets/music/Karl Casey - Fortress.mp3");
+    }
 
     m_paused      = false;
     m_pauseCursor = 0;
     m_pauseTime   = 0.f;
-    m_pauseMusicVol = ctx.saveData ? ctx.saveData->musicVolume : 80;
+    m_pauseMusicVol = combatVol;   // pause/unpause restores the scaled combat level
     m_pauseSfxVol   = ctx.saveData ? ctx.saveData->sfxVolume  : 80;
 
     setupCollisionCallback(ctx);
@@ -237,10 +243,11 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_mirrors)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
             m_deathPos = ev.avatar->pos;
-            m_deathTimer = 0.65f;
+            m_deathTimer = 1.8f;
             m_shakeTimer = m_shakeDuration = 0.5f;
-            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
-            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
+            if (m_audio) m_audio->stopMusic();
+            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 28, 18.f, 460.f);
+            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 36);
 
         } else if (ev.type == CollisionEvent::Type::EnemyProjectileHitAvatar) {
             if (!ev.avatar->alive || !ev.enemyProj->alive) return;
@@ -267,10 +274,11 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_mirrors)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
             m_deathPos = ev.avatar->pos;
-            m_deathTimer = 0.65f;
+            m_deathTimer = 1.8f;
             m_shakeTimer = m_shakeDuration = 0.5f;
-            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
-            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
+            if (m_audio) m_audio->stopMusic();
+            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 28, 18.f, 460.f);
+            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 36);
 
         } else if (ev.type == CollisionEvent::Type::ProjectileHitAvatar) {
             if (!ev.avatar->alive || !ev.projectile->alive) return;
@@ -300,10 +308,11 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 for (auto& e : m_mirrors)    if (e->alive && (e->pos-dp).length()<=200.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
             }
             m_deathPos = ev.avatar->pos;
-            m_deathTimer = 0.65f;
+            m_deathTimer = 1.8f;
             m_shakeTimer = m_shakeDuration = 0.5f;
-            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
-            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
+            if (m_audio) m_audio->stopMusic();
+            m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 28, 18.f, 460.f);
+            m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 36);
         }
     });
 }
@@ -353,6 +362,7 @@ void CombatScene::resetGame(SceneContext& ctx) {
     // Hull selection from save
     HullType hull = HullType::Delta;
     if (ctx.saveData) hull = hullFromString(ctx.saveData->activeHull);
+    m_isGolden = ctx.saveData && ctx.saveData->isGolden(ctx.saveData->activeHull);
 
     m_avatar = std::make_unique<Avatar>(
         Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f, hull);
@@ -531,11 +541,12 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     if (m_complete) return;
     if (m_paused) { m_pauseTime += dt; return; }
 
-    // Avatar death animation timer
+    // Avatar death — slow-mo like boss death, music already fading
     if (m_deathTimer > 0.f) {
         m_deathTimer -= dt;
-        m_particles.update(dt);
-        m_fragments.update(dt);
+        float slowDt = dt * 0.12f;   // 12% speed — dramatic freeze-frame effect
+        m_particles.update(slowDt);
+        m_fragments.update(slowDt);
         if (m_shakeTimer > 0.f) m_shakeTimer -= dt;
         if (m_deathTimer <= 0.f)
             ctx.scenes->replace(std::make_unique<GameOverScene>(m_score));
@@ -616,12 +627,22 @@ void CombatScene::update(float dt, SceneContext& ctx) {
 
         if (m_input.thrustForward) {
             Vec2 heading    = Vec2::fromAngle(m_avatar->angle);
-            Vec2 perp       = { -heading.y, heading.x };
             Vec2 exhaustDir = { -heading.x, -heading.y };
-            Vec2 eR = m_avatar->pos - heading * 25.f + perp * 3.f;
-            Vec2 eL = m_avatar->pos - heading * 25.f - perp * 3.f;
-            m_particles.emitThrust(eR, exhaustDir, 80, 200, 255, 3);
-            m_particles.emitThrust(eL, exhaustDir, 80, 200, 255, 3);
+            // 28px behind center puts the nozzle well clear of the hull tail
+            Vec2 nozzle = m_avatar->pos - heading * 28.f;
+            // Three-layer flame: hot white core → cyan body → deep blue outer
+            m_particles.emitExhaust(nozzle, exhaustDir, m_avatar->vel, 255, 255, 220, 2);
+            m_particles.emitExhaust(nozzle, exhaustDir, m_avatar->vel,  80, 210, 255, 4);
+            m_particles.emitExhaust(nozzle, exhaustDir, m_avatar->vel,  30, 100, 220, 2);
+        }
+
+        // Gold ship sparkles — brief golden glints emitted from hull body
+        if (m_isGolden) {
+            m_sparkleTimer += dt;
+            if (m_sparkleTimer >= 0.07f) {
+                m_sparkleTimer = 0.f;
+                m_particles.emit(m_avatar->pos, 255, 210, 30, 2);
+            }
         }
 
         bool rapidFire = (m_avatar->overdriveTimer > 0.f);
@@ -785,7 +806,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                 if (mine->hitsLeft <= 0) {
                     mine->alive = false;
                     m_score += static_cast<int>(mine->scoreValue() * m_scoreMult);
-                    m_fragments.emit(mine->pos, 255, 140, 20, 10, 14.f, 260.f);
+                    m_fragments.emit(mine->pos, 255, 140, 20, 16, 16.f, 360.f);
                 }
                 break;
             }
@@ -911,9 +932,9 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                     m_score += static_cast<int>(100.f * m_scoreMult);
                     m_iceKilled++;
                     // Big death explosion
-                    m_fragments.emit(m_boss->pos, 255, 180, 40, 50, 22.f, 450.f);
-                    m_fragments.emit(m_boss->pos, 255, 60,  20, 30, 16.f, 300.f);
-                    m_fragments.emit(m_boss->pos, 255, 255, 200, 20, 12.f, 200.f);
+                    m_fragments.emit(m_boss->pos, 255, 180, 40, 70, 24.f, 520.f);
+                    m_fragments.emit(m_boss->pos, 255, 60,  20, 45, 18.f, 360.f);
+                    m_fragments.emit(m_boss->pos, 255, 255, 200, 30, 14.f, 240.f);
                     // Start slow-mo + shake
                     m_bossDeathTimer = 2.5f;
                     m_shakeTimer     = 2.0f;
@@ -953,8 +974,9 @@ void CombatScene::updateMines(float dt, SceneContext& ctx) {
                         m_avatar->alive = false;
                         m_trace.onHit();
                         m_deathPos = m_avatar->pos;
-                        m_deathTimer = 0.65f;
+                        m_deathTimer = 1.8f;
                         m_shakeTimer = m_shakeDuration = 0.5f;
+                        if (ctx.audio) ctx.audio->stopMusic();
                         m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
                         m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
                         return;
@@ -1165,10 +1187,12 @@ void CombatScene::render(SceneContext& ctx) {
     vr->drawGrid(gr, gg, gb);
 
     // Walls — dim glow in world accent color
-    m_walls.render(vr, wt.accentR / 4, wt.accentG / 4, wt.accentB / 4);
+    m_walls.render(vr, wt.accentR / 2, wt.accentG / 2, wt.accentB / 2);
 
     GlowColor projColor   = { Constants::COL_PROJ_R,   Constants::COL_PROJ_G,   Constants::COL_PROJ_B   };
-    GlowColor avatarColor = { Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B };
+    GlowColor avatarColor = m_isGolden
+        ? GlowColor{ 255, 210, 30 }
+        : GlowColor{ Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B };
 
     // Shield ring
     if (m_avatar && m_avatar->shielded) {
@@ -1478,7 +1502,7 @@ void CombatScene::renderMines(SceneContext& ctx) const {
 void CombatScene::emitDeathParticles() {
     auto emit = [this](const auto& vec, uint8_t r, uint8_t g, uint8_t b) {
         for (const auto& e : vec)
-            if (!e->alive) m_particles.emit(e->pos, r, g, b, 8);
+            if (!e->alive) m_particles.emit(e->pos, r, g, b, 14);
     };
     emit(m_hunters,          Constants::COL_HUNTER_R,  Constants::COL_HUNTER_G,  Constants::COL_HUNTER_B);
     emit(m_sentries,         Constants::COL_SENTRY_R,  Constants::COL_SENTRY_G,  Constants::COL_SENTRY_B);
@@ -1492,22 +1516,22 @@ void CombatScene::emitDeathParticles() {
 void CombatScene::emitDeathFragments() {
     for (const auto& e : m_hunters)
         if (!e->alive)
-            m_fragments.emit(e->pos, Constants::COL_HUNTER_R, Constants::COL_HUNTER_G, Constants::COL_HUNTER_B, 6, 10.f, 320.f);
+            m_fragments.emit(e->pos, Constants::COL_HUNTER_R, Constants::COL_HUNTER_G, Constants::COL_HUNTER_B, 10, 12.f, 400.f);
     for (const auto& e : m_sentries)
         if (!e->alive)
-            m_fragments.emit(e->pos, Constants::COL_SENTRY_R, Constants::COL_SENTRY_G, Constants::COL_SENTRY_B, 8, 14.f, 240.f);
+            m_fragments.emit(e->pos, Constants::COL_SENTRY_R, Constants::COL_SENTRY_G, Constants::COL_SENTRY_B, 13, 16.f, 310.f);
     for (const auto& e : m_spawnerICE)
         if (!e->alive)
-            m_fragments.emit(e->pos, Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G, Constants::COL_SPAWNER_B, 12, 18.f, 200.f);
+            m_fragments.emit(e->pos, Constants::COL_SPAWNER_R, Constants::COL_SPAWNER_G, Constants::COL_SPAWNER_B, 18, 20.f, 280.f);
     for (const auto& e : m_phantoms)
         if (!e->alive)
-            m_fragments.emit(e->pos, 50, 200, 220, 8, 12.f, 300.f);
+            m_fragments.emit(e->pos, 50, 200, 220, 12, 14.f, 380.f);
     for (const auto& e : m_leeches)
         if (!e->alive)
-            m_fragments.emit(e->pos, 180, 60, 255, 6, 10.f, 280.f);
+            m_fragments.emit(e->pos, 180, 60, 255, 9, 12.f, 340.f);
     for (const auto& e : m_mirrors)
         if (!e->alive)
-            m_fragments.emit(e->pos, 200, 230, 255, 8, 12.f, 250.f);
+            m_fragments.emit(e->pos, 200, 230, 255, 12, 14.f, 320.f);
 }
 
 // ---------------------------------------------------------------------------

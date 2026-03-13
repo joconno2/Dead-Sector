@@ -83,8 +83,15 @@ void MainMenuScene::onEnter(SceneContext& ctx) {
     m_time   = 0.f;
     m_pulse  = 0.f;
     m_cursor = MenuItem::NewRun;
-    if (ctx.audio)
-        ctx.audio->playMusic("assets/music/Karl Casey - Jason Goes to Hell.mp3");
+    static constexpr const char* MENU_TRACK = "assets/music/Karl Casey - Jason Goes to Hell.mp3";
+    if (ctx.audio) {
+        // Restore full user volume (combat scene may have reduced it)
+        if (ctx.saveData)
+            ctx.audio->setMusicVolume(ctx.saveData->musicVolume * MIX_MAX_VOLUME / 100);
+        // Only restart if not already streaming this track (prevents restart on sub-menu return)
+        if (!ctx.audio->isPlaying(MENU_TRACK))
+            ctx.audio->playMusicFrom(MENU_TRACK, 5.0, 1200);
+    }
 }
 
 void MainMenuScene::onExit() {}

@@ -13,7 +13,7 @@ AudioSystem::~AudioSystem() {
     if (m_sndShot)      { Mix_FreeChunk(m_sndShot);      m_sndShot      = nullptr; }
     if (m_sndExplosion) { Mix_FreeChunk(m_sndExplosion); m_sndExplosion = nullptr; }
     if (m_sndThreshold) { Mix_FreeChunk(m_sndThreshold); m_sndThreshold = nullptr; }
-    if (m_music)        { Mix_FreeMusic(m_music);         m_music        = nullptr; }
+    if (m_music)        { Mix_HaltMusic(); Mix_FreeMusic(m_music); m_music = nullptr; }
     if (m_ready) {
         Mix_CloseAudio();
         Mix_Quit();
@@ -46,20 +46,30 @@ bool AudioSystem::init() {
 // ---------------------------------------------------------------------------
 
 void AudioSystem::playMusic(const std::string& path, int loops) {
+    playMusicFrom(path, 0.0, 800, loops);
+}
+
+void AudioSystem::playMusicFrom(const std::string& path, double startPos, int fadeMs, int loops) {
     if (!m_ready) return;
+    Mix_HaltMusic();
     if (m_music) { Mix_FreeMusic(m_music); m_music = nullptr; }
+    m_currentPath = path;
     m_music = Mix_LoadMUS(path.c_str());
     if (!m_music) {
         std::cerr << "Mix_LoadMUS(" << path << ") failed: " << Mix_GetError() << "\n";
+        m_currentPath.clear();
         return;
     }
-    Mix_PlayMusic(m_music, loops);
+    if (startPos > 0.0)
+        Mix_FadeInMusicPos(m_music, loops, fadeMs, startPos);
+    else
+        Mix_FadeInMusic(m_music, loops, fadeMs);
 }
 
 void AudioSystem::stopMusic() {
     if (!m_ready) return;
-    Mix_HaltMusic();
-    if (m_music) { Mix_FreeMusic(m_music); m_music = nullptr; }
+    Mix_FadeOutMusic(600);
+    m_currentPath.clear();
 }
 
 void AudioSystem::setMusicVolume(int vol) {
@@ -117,65 +127,91 @@ Mix_Chunk* AudioSystem::buildChunk(const std::vector<Sint16>& mono, int sampleRa
     return chunk;
 }
 
-// Shot: frequency-swept sawtooth chirp, 600 Hz → 120 Hz over 90ms
+// Shot: punchy sawtooth chirp with noise crunch layer — 850 Hz → 60 Hz over 110ms
 Mix_Chunk* AudioSystem::synthShot() {
-    const int   SR     = 44100;
-    const float DUR    = 0.09f;
-    const float F_START = 600.f;
-    const float F_END   = 120.f;
+    const int   SR      = 44100;
+    const float DUR     = 0.11f;
+    const float F_START = 850.f;
+    const float F_END   = 60.f;
     int n = (int)(SR * DUR);
     std::vector<Sint16> buf(n);
+
+    srand(7331);
+    static float phase = 0.f;
     for (int i = 0; i < n; ++i) {
-        float t    = (float)i / SR;
         float frac = (float)i / n;
-        float freq = F_START + (F_END - F_START) * frac * frac; // quadratic sweep
-        // sawtooth phase
-        static float phase = 0.f;
+        float freq = F_START + (F_END - F_START) * frac * frac; // quadratic sweep down
         phase += freq / SR;
         if (phase > 1.f) phase -= 1.f;
         float saw  = 2.f * phase - 1.f;
-        float amp  = (1.f - frac) * 0.6f; // linear decay
-        buf[i] = (Sint16)(saw * amp * 28000.f);
+
+        // 20% noise layer for crunch
+        float noise = ((float)rand() / RAND_MAX) * 2.f - 1.f;
+        float sig   = saw * 0.80f + noise * 0.20f;
+
+        // Sharp initial punch: slow the decay slightly at the start
+        float amp = std::pow(1.f - frac, 1.3f) * 0.75f;
+        buf[i] = (Sint16)(sig * amp * 30000.f);
     }
     return buildChunk(buf, SR);
 }
 
-// Explosion: white noise with exponential decay over 0.45s, low-pass approximated
-// by averaging adjacent samples for a "thud" character
+// Explosion: deep thud — low-pass filtered noise + strong sub-bass, long decay
 Mix_Chunk* AudioSystem::synthExplosion() {
-    const int   SR  = 44100;
-    const float DUR = 0.45f;
+    const int   SR       = 44100;
+    const float DUR      = 0.65f;   // longer = more sustain
+    const float BASS_HZ  = 42.f;    // deep sub-bass frequency
+    const float BASS_STR = 0.65f;   // strong sub-bass punch
     int n = (int)(SR * DUR);
     std::vector<Sint16> buf(n);
-    // Generate raw noise first
-    srand(42); // deterministic
+
+    srand(42);
     float prev = 0.f;
     for (int i = 0; i < n; ++i) {
         float frac  = (float)i / n;
         float noise = ((float)rand() / RAND_MAX) * 2.f - 1.f;
-        // Simple one-pole low-pass for body (α = 0.4)
-        prev = 0.4f * noise + 0.6f * prev;
-        float amp = std::exp(-frac * 7.f); // fast exponential decay
-        // Pitch down effect: mix in sub-bass sine
-        float sub = std::sin(2.f * 3.14159f * 60.f * (float)i / SR) * 0.4f;
-        buf[i] = (Sint16)((prev + sub) * amp * 28000.f);
+
+        // Heavier low-pass (α = 0.5) for more body
+        prev = 0.5f * noise + 0.5f * prev;
+
+        // Slower exponential decay — more sustained thud
+        float amp = std::exp(-frac * 4.5f);
+
+        // Deep sub-bass sine for physical impact
+        float sub = std::sin(2.f * 3.14159f * BASS_HZ * (float)i / SR) * BASS_STR;
+
+        // Brief noise burst at very start (first 3ms) for transient click
+        float click = (i < (int)(SR * 0.003f)) ? 0.4f * noise : 0.f;
+
+        buf[i] = (Sint16)((prev + sub + click) * amp * 32000.f);
     }
     return buildChunk(buf, SR);
 }
 
-// Threshold alarm: rising two-tone pulse (100ms)
+// Threshold alarm: two-tone rising sweep with punchy noise attack
 Mix_Chunk* AudioSystem::synthThreshold() {
     const int   SR  = 44100;
-    const float DUR = 0.18f;
+    const float DUR = 0.22f;
     int n = (int)(SR * DUR);
     std::vector<Sint16> buf(n);
+
+    srand(99);
     for (int i = 0; i < n; ++i) {
         float t    = (float)i / SR;
         float frac = (float)i / n;
-        float f1   = 440.f + 660.f * frac; // rising sweep
-        float wave = std::sin(2.f * 3.14159f * f1 * t);
-        float amp  = (frac < 0.8f) ? 0.5f : 0.5f * (1.f - (frac - 0.8f) / 0.2f);
-        buf[i] = (Sint16)(wave * amp * 28000.f);
+
+        // Rising sweep: 330 Hz → 1050 Hz (lower start = bassier alarm)
+        float freq = 330.f + 720.f * frac;
+        float wave = std::sin(2.f * 3.14159f * freq * t);
+
+        // Short noise transient at start for attack punch (first 8ms)
+        float noise   = ((float)rand() / RAND_MAX) * 2.f - 1.f;
+        float noiseMix = (i < (int)(SR * 0.008f)) ? 0.5f * noise : 0.f;
+
+        // Amplitude: full, then fade out over last 25%
+        float amp  = (frac < 0.75f) ? 0.6f : 0.6f * (1.f - (frac - 0.75f) / 0.25f);
+
+        buf[i] = (Sint16)((wave + noiseMix) * amp * 30000.f);
     }
     return buildChunk(buf, SR);
 }

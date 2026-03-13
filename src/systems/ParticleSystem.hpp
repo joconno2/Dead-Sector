@@ -17,6 +17,10 @@ public:
     // Directed exhaust stream — dir is the dominant exit direction, ±45° spread
     void emitThrust(Vec2 pos, Vec2 dir, uint8_t r, uint8_t g, uint8_t b, int count = 2);
 
+    // Tight engine exhaust — ±15° cone, velocity-compensated so particles always trail behind
+    void emitExhaust(Vec2 pos, Vec2 dir, Vec2 shipVel,
+                     uint8_t r, uint8_t g, uint8_t b, int count = 2);
+
     void update(float dt);
 
     // Draw directly with SDL (short trail lines, alpha-faded by remaining life)
@@ -33,6 +37,7 @@ private:
         uint8_t r, g, b;
     };
 
-    std::vector<Particle> m_pool;
+    std::vector<Particle> m_pool;        // burst / explosion sparks
+    std::vector<Particle> m_exhaustPool; // engine exhaust (separate trail direction)
     std::mt19937          m_rng;
 };

@@ -119,16 +119,17 @@ void EventScene::render(SceneContext& ctx) {
     int hw = ctx.hud->measureText(head);
     ctx.hud->drawLabel(head, bx + boxW/2 - hw/2, by + 16, headCol);
 
-    // Body text — split on \n
+    // Body text — split on \n, then word-wrap each segment to fit the card
     SDL_Color bodyCol = { 160, 200, 170, 230 };
     if (!isBuff) bodyCol = { 200, 160, 120, 230 };
     std::string bodyStr = m_event->body;
     int lineY = by + 68;
+    const int maxTextW = boxW - 32;
     std::istringstream ss(bodyStr);
-    std::string line;
-    while (std::getline(ss, line)) {
-        ctx.hud->drawLabel(line, bx + 16, lineY, bodyCol);
-        lineY += 26;
+    std::string seg;
+    while (std::getline(ss, seg)) {
+        int drawn = ctx.hud->drawWrapped(seg, bx + 16, lineY, maxTextW, bodyCol, 26);
+        lineY += drawn * 26;
     }
 
     // Outcome

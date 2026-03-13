@@ -24,7 +24,7 @@ HUD::~HUD() {
 
 void HUD::drawText(const std::string& text, int x, int y, SDL_Color color) {
     if (!m_font) return;
-    SDL_Surface* surf = TTF_RenderText_Blended(m_font, text.c_str(), color);
+    SDL_Surface* surf = TTF_RenderUTF8_Blended(m_font, text.c_str(), color);
     if (!surf) return;
     SDL_Texture* tex = SDL_CreateTextureFromSurface(m_renderer, surf);
     SDL_FreeSurface(surf);
@@ -44,7 +44,7 @@ void HUD::drawLabel(const std::string& text, int x, int y, SDL_Color color) {
 int HUD::measureText(const std::string& text) const {
     if (!m_font || text.empty()) return 0;
     int w = 0, h = 0;
-    TTF_SizeText(m_font, text.c_str(), &w, &h);
+    TTF_SizeUTF8(m_font, text.c_str(), &w, &h);
     return w;
 }
 

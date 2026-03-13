@@ -107,6 +107,8 @@ private:
     float m_decoyTimer     = 0.f;  // CLONE: decoy active duration
     Vec2  m_decoyPos       = {};   // CLONE: decoy world-space position
     int   m_scatterCount   = 0;    // SCATTER_CORE: shot counter (splits on 4th)
+    bool  m_isGolden       = false; // true when activeHull has a golden clear
+    float m_sparkleTimer   = 0.f;  // throttle for gold-ship sparkle particles
 
     struct InputState {
         bool thrustForward = false;

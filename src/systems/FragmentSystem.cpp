@@ -10,10 +10,10 @@ void FragmentSystem::emit(Vec2 pos, uint8_t r, uint8_t g, uint8_t b,
 
     static thread_local std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<float> angleDist(0.f, 6.28318f);
-    std::uniform_real_distribution<float> speedMult(0.4f, 1.0f);
-    std::uniform_real_distribution<float> lenMult(0.5f, 1.4f);
-    std::uniform_real_distribution<float> angVelDist(-8.f, 8.f);
-    std::uniform_real_distribution<float> lifeDist(0.45f, 0.85f);
+    std::uniform_real_distribution<float> speedMult(0.45f, 1.15f);
+    std::uniform_real_distribution<float> lenMult(0.6f, 1.6f);
+    std::uniform_real_distribution<float> angVelDist(-10.f, 10.f);
+    std::uniform_real_distribution<float> lifeDist(0.5f, 1.0f);
 
     int room = MAX - (int)m_frags.size();
     count = std::min(count, room);
@@ -35,7 +35,7 @@ void FragmentSystem::emit(Vec2 pos, uint8_t r, uint8_t g, uint8_t b,
 }
 
 void FragmentSystem::update(float dt) {
-    constexpr float DRAG = 2.8f;
+    constexpr float DRAG = 2.5f;
     for (auto& f : m_frags) {
         f.pos   += f.vel * dt;
         f.vel   *= std::max(0.f, 1.f - DRAG * dt);
@@ -49,10 +49,10 @@ void FragmentSystem::update(float dt) {
 }
 
 void FragmentSystem::render(SDL_Renderer* renderer) const {
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
     for (const auto& f : m_frags) {
         float t = f.life / f.maxLife;   // 1=fresh → 0=dead
-        auto alpha = static_cast<uint8_t>(t * t * 240);
+        auto alpha = static_cast<uint8_t>(t * t * 255);
 
         float cx = std::cos(f.angle), sx = std::sin(f.angle);
         float ax = f.pos.x + cx * f.len,  ay = f.pos.y + sx * f.len;
@@ -62,12 +62,13 @@ void FragmentSystem::render(SDL_Renderer* renderer) const {
         SDL_SetRenderDrawColor(renderer, f.r, f.g, f.b, alpha);
         SDL_RenderDrawLineF(renderer, ax, ay, bx, by);
 
-        // Glow halo — one pixel offset each side
-        uint8_t glow = alpha / 3;
+        // Glow halo — half-dim on all four sides for more body
+        uint8_t glow = alpha / 2;
         SDL_SetRenderDrawColor(renderer, f.r, f.g, f.b, glow);
         SDL_RenderDrawLineF(renderer, ax+1, ay, bx+1, by);
         SDL_RenderDrawLineF(renderer, ax-1, ay, bx-1, by);
         SDL_RenderDrawLineF(renderer, ax, ay+1, bx, by+1);
+        SDL_RenderDrawLineF(renderer, ax, ay-1, bx, by-1);
     }
 }
 

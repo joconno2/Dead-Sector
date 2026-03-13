@@ -21,6 +21,9 @@ public:
     // Draw a single line segment with glow
     void drawGlowLine(Vec2 a, Vec2 b, GlowColor color);
 
+    // Narrower glow (±1–3px) — for static geometry like walls
+    void drawGlowLineThin(Vec2 a, Vec2 b, GlowColor color);
+
     // Draw CRT scanline overlay (call last before SDL_RenderPresent)
     void drawCRTOverlay();
 
