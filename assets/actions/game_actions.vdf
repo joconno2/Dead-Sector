@@ -1,0 +1,116 @@
+"In Game Actions"
+{
+    // -----------------------------------------------------------------------
+    // Dead Sector — Steam Input action manifest
+    //
+    // Reference this file from the Steamworks Partner dashboard:
+    //   App Admin > Steam Input > Action Manifest > Browse
+    //
+    // After uploading, users can rebind actions in the Steam Input overlay.
+    // The game's built-in keybinds scene remains the primary rebinding UI.
+    // -----------------------------------------------------------------------
+
+    "actions"
+    {
+        "InGameControls"
+        {
+            "title"     "#Set_InGameControls"
+            "StickPadGyro"
+            {
+                "Thrust"
+                {
+                    "title"         "#Action_Thrust"
+                    "input_mode"    "absolute_mouse"
+                }
+            }
+            "Button"
+            {
+                "Thrust"
+                {
+                    "title"     "#Action_Thrust"
+                }
+                "RotateLeft"
+                {
+                    "title"     "#Action_RotateLeft"
+                }
+                "RotateRight"
+                {
+                    "title"     "#Action_RotateRight"
+                }
+                "Fire"
+                {
+                    "title"     "#Action_Fire"
+                }
+                "Program0"
+                {
+                    "title"     "#Action_Program0"
+                }
+                "Program1"
+                {
+                    "title"     "#Action_Program1"
+                }
+                "Program2"
+                {
+                    "title"     "#Action_Program2"
+                }
+                "Pause"
+                {
+                    "title"     "#Action_Pause"
+                }
+            }
+        }
+        "MenuControls"
+        {
+            "title"     "#Set_MenuControls"
+            "Button"
+            {
+                "MenuUp"
+                {
+                    "title"     "#Action_MenuUp"
+                }
+                "MenuDown"
+                {
+                    "title"     "#Action_MenuDown"
+                }
+                "MenuLeft"
+                {
+                    "title"     "#Action_MenuLeft"
+                }
+                "MenuRight"
+                {
+                    "title"     "#Action_MenuRight"
+                }
+                "MenuConfirm"
+                {
+                    "title"     "#Action_MenuConfirm"
+                }
+                "MenuBack"
+                {
+                    "title"     "#Action_MenuBack"
+                }
+            }
+        }
+    }
+    "localization"
+    {
+        "english"
+        {
+            "Set_InGameControls"    "In-Game"
+            "Set_MenuControls"      "Menus"
+            "Action_Thrust"         "Thrust"
+            "Action_RotateLeft"     "Rotate Left"
+            "Action_RotateRight"    "Rotate Right"
+            "Action_Fire"           "Fire"
+            "Action_Program0"       "Program Slot 1"
+            "Action_Program1"       "Program Slot 2"
+            "Action_Program2"       "Program Slot 3"
+            "Action_Pause"          "Pause"
+            "Action_MenuUp"         "Menu Up"
+            "Action_MenuDown"       "Menu Down"
+            "Action_MenuLeft"       "Menu Left"
+            "Action_MenuRight"      "Menu Right"
+            "Action_MenuConfirm"    "Confirm"
+            "Action_MenuBack"       "Back"
+        }
+    }
+}

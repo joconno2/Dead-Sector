@@ -1,6 +1,7 @@
 #pragma once
 #include "IScene.hpp"
 class AudioSystem;
+class SteamManager;
 #include "renderer/VectorRenderer.hpp"
 #include "world/Node.hpp"
 #include "core/Constants.hpp"
@@ -143,6 +144,10 @@ private:
 
     AudioSystem*        m_audio      = nullptr;  // borrowed from SceneContext
     SDL_GameController* m_controller = nullptr;  // borrowed; used for haptic rumble
+    SteamManager*       m_steam      = nullptr;  // borrowed; used for achievements
+
+    bool m_firstKillUnlocked = false;  // ACH_FIRST_KILL fired this run
+    bool m_highTraceUnlocked = false;  // ACH_HIGH_TRACE fired this run
 
     // Pause menu
     bool  m_paused       = false;

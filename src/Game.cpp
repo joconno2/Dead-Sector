@@ -1,6 +1,8 @@
 #include "Game.hpp"
 #include "core/Constants.hpp"
 #include "core/SaveSystem.hpp"
+#include <fstream>
+#include <iterator>
 #include "core/DisplaySettings.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
@@ -93,6 +95,16 @@ bool Game::init(int argc, char* argv[]) {
     }
     m_ctx.controller = m_controller;
 
+    // Steam Cloud save: if a cloud save exists, pull it down and overwrite the local
+    // file before loading. This ensures the freshest data wins on a new machine.
+    {
+        std::string cloudData;
+        if (m_steam->cloudLoad(cloudData)) {
+            std::ofstream f(SaveSystem::SAVE_PATH, std::ios::trunc);
+            f << cloudData;
+        }
+    }
+
     // Load persistent save data
     m_saveData       = SaveSystem::load();
     m_ctx.saveData   = &m_saveData;
@@ -137,6 +149,16 @@ bool Game::init(int argc, char* argv[]) {
 
 void Game::shutdown() {
     m_scenes.reset();
+
+    // Push local save to Steam Cloud before shutdown
+    if (m_steam && m_steam->isAvailable()) {
+        std::ifstream f(SaveSystem::SAVE_PATH);
+        std::string contents((std::istreambuf_iterator<char>(f)),
+                              std::istreambuf_iterator<char>());
+        if (!contents.empty())
+            m_steam->cloudSave(contents);
+    }
+
     if (m_steam) m_steam->shutdown();
     m_vrenderer.reset();
     m_hud.reset();
@@ -196,7 +218,7 @@ void Game::run() {
         while (accumulator >= FIXED_TICKS) {
             m_steam->tick();
             m_debug.update(FIXED_DT, m_ctx);
-            if (!m_debug.isOpen())
+            if (!m_debug.isOpen() && !m_steam->isOverlayActive())
                 m_scenes->update(FIXED_DT, m_ctx);
             accumulator -= FIXED_TICKS;
         }

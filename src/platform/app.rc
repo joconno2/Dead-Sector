@@ -1,0 +1,5 @@
+// Windows resource file — embeds the application icon into the .exe
+// The icon file must exist at assets/icon.ico relative to the source tree root.
+// Generate it from a PNG with ImageMagick: convert icon.png -define icon:auto-resize=256,128,64,48,32,16 icon.ico
+
+IDI_ICON1 ICON "..\\assets\\icon.ico"

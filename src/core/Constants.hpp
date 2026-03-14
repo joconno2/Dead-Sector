@@ -3,8 +3,11 @@
 
 namespace Constants {
 
-    // Build version
-    constexpr const char* VERSION = "v0.2.2";
+    // Build version — set by -DDEAD_SECTOR_VERSION from CMakeLists PROJECT_VERSION
+#ifndef DEAD_SECTOR_VERSION
+#define DEAD_SECTOR_VERSION "dev"
+#endif
+    constexpr const char* VERSION = DEAD_SECTOR_VERSION;
 
     // Window
     constexpr int   SCREEN_W  = 1280;

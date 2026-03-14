@@ -7,16 +7,16 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  # ---------------------------------------------------------------------------
+  # Linux + Windows (cross-compile)
+  # ---------------------------------------------------------------------------
+  build-linux-windows:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # -----------------------------------------------------------------------
-      # Dependencies
-      # -----------------------------------------------------------------------
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
@@ -25,9 +25,6 @@ jobs:
             libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev \
             g++-mingw-w64-x86-64 mingw-w64
 
-      # -----------------------------------------------------------------------
-      # Download Windows SDL2 dev packages (mirrors release.yml)
-      # -----------------------------------------------------------------------
       - name: Fetch Windows SDL2 packages
         run: |
           mkdir -p deps/windows
@@ -42,23 +39,94 @@ jobs:
           tar xf SDL2_ttf-mingw.tar.gz
           tar xf SDL2_mixer-mingw.tar.gz
 
-      # -----------------------------------------------------------------------
-      # Linux build
-      # -----------------------------------------------------------------------
+      - name: Check Steamworks SDK availability
+        id: steam
+        env:
+          SDK_URL: ${{ secrets.STEAMWORKS_SDK_URL }}
+        run: |
+          if [ -n "$SDK_URL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "flag=ON"        >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "flag=OFF"        >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Steamworks SDK
+        if: steps.steam.outputs.available == 'true'
+        env:
+          STEAMWORKS_SDK_URL: ${{ secrets.STEAMWORKS_SDK_URL }}
+        run: |
+          curl -sL "$STEAMWORKS_SDK_URL" -o steamworks_sdk.zip
+          unzip -q steamworks_sdk.zip -d steamworks_tmp
+          mkdir -p deps/steamworks
+          mv steamworks_tmp/sdk/public                          deps/steamworks/public
+          mkdir -p deps/steamworks/lib
+          mv steamworks_tmp/sdk/redistributable_bin/linux64     deps/steamworks/lib/linux64
+          mv steamworks_tmp/sdk/redistributable_bin/win64       deps/steamworks/lib/win64
+          rm -rf steamworks_tmp steamworks_sdk.zip
+
       - name: Build Linux
         run: |
           cmake -S . -B build-linux \
             -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_STEAM=${{ steps.steam.outputs.flag }} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
           cmake --build build-linux --parallel $(nproc)
 
-      # -----------------------------------------------------------------------
-      # Windows cross-compile
-      # -----------------------------------------------------------------------
       - name: Build Windows
         run: |
           cmake -S . -B build-windows \
             -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw64.cmake \
             -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_STEAM=${{ steps.steam.outputs.flag }} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
           cmake --build build-windows --parallel $(nproc)
+
+  # ---------------------------------------------------------------------------
+  # macOS — native build
+  # ---------------------------------------------------------------------------
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja sdl2 sdl2_ttf sdl2_mixer
+
+      - name: Check Steamworks SDK availability
+        id: steam
+        env:
+          SDK_URL: ${{ secrets.STEAMWORKS_SDK_URL }}
+        run: |
+          if [ -n "$SDK_URL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "flag=ON"        >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "flag=OFF"        >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Steamworks SDK
+        if: steps.steam.outputs.available == 'true'
+        env:
+          STEAMWORKS_SDK_URL: ${{ secrets.STEAMWORKS_SDK_URL }}
+        run: |
+          curl -sL "$STEAMWORKS_SDK_URL" -o steamworks_sdk.zip
+          unzip -q steamworks_sdk.zip -d steamworks_tmp
+          mkdir -p deps/steamworks
+          mv steamworks_tmp/sdk/public              deps/steamworks/public
+          mkdir -p deps/steamworks/lib
+          mv steamworks_tmp/sdk/redistributable_bin/osx deps/steamworks/lib/osx
+          rm -rf steamworks_tmp steamworks_sdk.zip
+
+      - name: Build macOS
+        run: |
+          cmake -S . -B build-macos \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+            -DUSE_STEAM=${{ steps.steam.outputs.flag }} \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+          cmake --build build-macos --parallel $(sysctl -n hw.logicalcpu)

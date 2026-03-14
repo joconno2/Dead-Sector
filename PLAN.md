@@ -8,20 +8,21 @@ Target: Steam Early Access release
 ## Steam Release Requirements
 
 ### Platform / Technical
-- [ ] **Register real Steam AppID** — replace `480` in `steam_appid.txt`; update `SteamManager` leaderboard names from TODO comments to actual board names created in Steamworks dashboard
-- [ ] **Achievements** — define in Steamworks dashboard; wire into `SteamManager` (first boss kill, clear world 1, reach 75% trace, endless wave milestones, golden hull unlock)
-- [ ] **Steam Cloud saves** — redirect `dead-sector.sav` through `ISteamRemoteStorage`
-- [ ] **Steam Overlay** — handle `GameOverlayActivated_t` callback to pause the game when overlay opens
-- [ ] **Steam Input / controller manifest** — register action manifest for full Steam Input support (replaces raw SDL controller queries); enables Steam's own button remapping UI
-- [ ] **Add Steamworks SDK to CI** — `release.yml` needs `USE_STEAM=ON` and the SDK available (git-LFS submodule or download step)
+- [ ] **Register real Steam AppID** — replace `480` in `steam_appid.txt`; create leaderboards "Dead_Sector_Normal" and "Dead_Sector_Endless" in Steamworks dashboard
+- [ ] **Define achievements in Steamworks dashboard** — 7 achievements coded and ready: `ACH_FIRST_KILL`, `ACH_FIRST_BOSS`, `ACH_CLEAR_WORLD1`, `ACH_CLEAR_WORLD2`, `ACH_FINAL_BREACH`, `ACH_GOLDEN_HULL`, `ACH_HIGH_TRACE`
+- [x] **Achievement unlock logic** — wired into CombatScene, VictoryScene
+- [x] **Steam Overlay pause** — `GameOverlayActivated_t` → `isOverlayActive()` pauses game loop
+- [x] **Steam Input manifest** — `assets/actions/game_actions.vdf` created; upload via Steamworks dashboard
+- [x] **Windows icon** — `.rc` resource file added; drop `assets/icon.ico` before Windows build
+- [x] **Steam Cloud saves** — `cloudSave`/`cloudLoad` via `ISteamRemoteStorage`; synced in `Game::init` and `Game::shutdown`
+- [x] **Add Steamworks SDK to CI** — both workflows download SDK from `STEAMWORKS_SDK_URL` secret and build with `USE_STEAM=ON` when present
 - [ ] **Store page** — capsule art, screenshots, trailer, description, tags, system requirements
-- [ ] **Windows icon** — embed `.ico` via `.rc` resource file in CMakeLists
 - [ ] **Code signing** — Windows Authenticode signing
 - [ ] **ESRB / PEGI rating** — complete questionnaire (likely E10+ / PEGI 7)
 
 ### Legal
 - [ ] Confirm Karl Casey music licensing for commercial distribution; replace or license before release
-- [ ] Add credits scene (font: Share Tech Mono OFL, music, engine, tools)
+- [x] Credits scene exists (CreditsScene.cpp — scrolling credits with font, music, engine attribution)
 
 ---
 
@@ -72,12 +73,12 @@ Target: Steam Early Access release
 
 ## Technical
 
-- [ ] **CombatScene.cpp** is ~1200 lines — split into CombatInput / CombatRender / CombatLogic files
-- [ ] **Version auto-injection** — pass `PROJECT_VERSION` from CMakeLists into `Constants::VERSION` via `configure_file`
-- [ ] **macOS build** — `toolchain-macos.cmake` + `macos-latest` CI job in `release.yml`
-- [ ] **Linux AppImage** — bundle shared libs for itch.io distribution
-- [ ] **Windows installer** — Inno Setup `.exe` for itch.io (Steam uses raw depot files)
-- [ ] **Automated tests** — unit tests for SaveSystem, ModSystem, TraceSystem
+- [x] **CombatScene.cpp** split — CombatScene.cpp (lifecycle) / CombatSceneUpdate.cpp / CombatSceneRender.cpp
+- [x] **Version auto-injection** — `Constants::VERSION` now reads `DEAD_SECTOR_VERSION` compile def set from `PROJECT_VERSION` in CMakeLists
+- [x] **macOS build** — `macos-latest` CI job in `build.yml` + `release.yml`; SDL2 via Homebrew; dylibs bundled in package
+- [x] **Linux AppImage** — `linuxdeploy` in release CI; `.desktop` file at `installer/dead-sector.desktop`
+- [x] **Windows installer** — NSIS script at `installer/dead-sector.nsi`; built via `makensis` in release CI
+- [x] **Automated tests** — `ctest` suite: SaveSystem (round-trip + logic), ModSystem (multipliers + flags), TraceSystem (tick, thresholds, callbacks)
 
 ---
 
@@ -85,7 +86,7 @@ Target: Steam Early Access release
 
 | Milestone | Focus |
 |---|---|
-| **v0.3** | Boss tuning, screen-shake, run history, tutorial |
+| **v0.3** | Boss tuning, run history, tutorial node |
 | **v0.4** | Infiltrate objective, new programs/mods, expanded events |
-| **v0.5** | Steam SDK live, achievements, cloud save, store page |
+| **v0.5** | Real AppID live, cloud save, CI Steam build, store page |
 | **v1.0 EA** | Steam release |

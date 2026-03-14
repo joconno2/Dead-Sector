@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(DeadSector VERSION 0.2.2 LANGUAGES CXX)
+project(DeadSector VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,9 +28,11 @@ option(USE_STEAM "Build with Steamworks SDK support" OFF)
 find_package(SDL2      REQUIRED CONFIG)
 find_package(SDL2_ttf  REQUIRED CONFIG)
 
-# SDL2_mixer: Windows uses the bundled MinGW cmake config; Linux uses the
-# system library (only the versioned .so.0 may be present without -dev).
-if(NOT WIN32)
+# SDL2_mixer: Windows/macOS use the cmake config package; Linux falls back to
+# find_file because the system package may only ship the versioned .so.0.
+if(WIN32 OR APPLE)
+    find_package(SDL2_mixer REQUIRED CONFIG)
+else()
     find_file(SDL2_MIXER_LIB
         NAMES libSDL2_mixer.so libSDL2_mixer-2.0.so libSDL2_mixer-2.0.so.0
         HINTS /usr/lib/x86_64-linux-gnu /usr/lib /usr/local/lib
@@ -41,8 +43,6 @@ if(NOT WIN32)
         IMPORTED_LOCATION "${SDL2_MIXER_LIB}"
         INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/deps/linux"
     )
-else()
-    find_package(SDL2_mixer REQUIRED CONFIG)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -51,9 +51,12 @@ endif()
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
-# WIN32 suppresses the console window on Windows release builds
+# WIN32 suppresses the console window on Windows release builds.
+# Include the .rc resource file so the executable gets the application icon.
+# Drop assets/icon.ico (256/128/64/48/32/16 px) before building the Windows package.
 if(WIN32)
-    add_executable(dead-sector WIN32 ${SOURCES})
+    enable_language(RC)
+    add_executable(dead-sector WIN32 ${SOURCES} src/platform/app.rc)
 else()
     add_executable(dead-sector ${SOURCES})
 endif()
@@ -83,6 +86,16 @@ if(USE_STEAM)
                 "${CMAKE_SOURCE_DIR}/deps/steamworks/lib/win64/steam_api64.dll"
                 $<TARGET_FILE_DIR:dead-sector>
             COMMENT "Copying steam_api64.dll"
+        )
+    elseif(APPLE)
+        target_link_libraries(dead-sector PRIVATE
+            ${CMAKE_SOURCE_DIR}/deps/steamworks/lib/osx/libsteam_api.dylib
+        )
+        add_custom_command(TARGET dead-sector POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_SOURCE_DIR}/deps/steamworks/lib/osx/libsteam_api.dylib"
+                $<TARGET_FILE_DIR:dead-sector>
+            COMMENT "Copying libsteam_api.dylib"
         )
     else()
         target_link_libraries(dead-sector PRIVATE
@@ -135,6 +148,35 @@ add_custom_command(TARGET dead-sector POST_BUILD
     COMMENT "Copying assets"
 )
 
+# ---------------------------------------------------------------------------
+# Tests — not built for Windows cross-compile (SDL2 types still needed for
+# headers, but no SDL_Init is called at runtime).
+# Run with: cmake --build build-linux --target test  OR  ctest --test-dir build-linux
+# ---------------------------------------------------------------------------
+if(NOT WIN32)
+    enable_testing()
+
+    function(add_ds_test name)
+        add_executable(${name} ${ARGN})
+        target_include_directories(${name} PRIVATE src)
+        target_link_libraries(${name} PRIVATE SDL2::SDL2 SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
+        add_test(NAME ${name} COMMAND ${name})
+    endfunction()
+
+    add_ds_test(test_save_system
+        tests/test_save_system.cpp
+        src/core/SaveSystem.cpp)
+
+    add_ds_test(test_mod_system
+        tests/test_mod_system.cpp
+        src/systems/ModSystem.cpp)
+
+    add_ds_test(test_trace_system
+        tests/test_trace_system.cpp
+        src/systems/TraceSystem.cpp)
+endif()
+
+# ---------------------------------------------------------------------------
 # SDL2_mixer.dll links SDL2.dll dynamically at runtime even when the exe
 # statically links SDL2, so both DLLs must ship with the Windows package.
 if(WIN32)

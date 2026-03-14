@@ -3,6 +3,7 @@
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
 #include "core/SaveSystem.hpp"
+#include "steam/SteamManager.hpp"
 #include "core/Constants.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
@@ -35,6 +36,19 @@ void VictoryScene::onEnter(SceneContext& ctx) {
         ctx.runCredits += m_bonus;
         ctx.runBonuses.push_back({ "BREACH BONUS", m_bonus });
         SaveSystem::save(*ctx.saveData);
+    }
+
+    // Steam achievements
+    if (ctx.steam) {
+        if (ctx.currentWorld == 0)
+            ctx.steam->unlockAchievement(ACH_CLEAR_WORLD1);
+        else if (ctx.currentWorld == 1)
+            ctx.steam->unlockAchievement(ACH_CLEAR_WORLD2);
+
+        if (m_isFinalWin) {
+            ctx.steam->unlockAchievement(ACH_FINAL_BREACH);
+            ctx.steam->unlockAchievement(ACH_GOLDEN_HULL);
+        }
     }
 }
 

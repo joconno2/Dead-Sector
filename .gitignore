@@ -1,6 +1,7 @@
 build/
 build-linux/
 build-windows/
+build-macos/
 *.o
 *.a
 *.so
