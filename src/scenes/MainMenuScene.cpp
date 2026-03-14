@@ -6,6 +6,7 @@
 #include "ShipSelectScene.hpp"
 #include "SettingsScene.hpp"
 #include "CreditsScene.hpp"
+#include "LeaderboardScene.hpp"
 #include "WorldSelectScene.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
@@ -68,21 +69,67 @@ static constexpr int QUOTE_COUNT = (int)(sizeof(QUOTE_LIST) / sizeof(QUOTE_LIST[
 static const char* MENU_LABELS[] = {
     "NEW RUN",
     "ENDLESS",
+    "HIGH SCORES",
     "SHOP",
     "SETTINGS",
     "CREDITS",
     "QUIT",
 };
-static constexpr int MENU_COUNT = 6;
+static constexpr int MENU_COUNT = 7;
 
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
+void MainMenuScene::spawnDriftObjs() {
+    m_driftObjs.clear();
+    std::mt19937 rng(42);  // fixed seed so background is deterministic
+    std::uniform_real_distribution<float> px(0.f, (float)Constants::SCREEN_W);
+    std::uniform_real_distribution<float> py(0.f, (float)Constants::SCREEN_H);
+    std::uniform_real_distribution<float> spd(12.f, 28.f);
+    std::uniform_real_distribution<float> ang(0.f, 6.283f);
+    std::uniform_real_distribution<float> sc(0.5f, 1.6f);
+    std::uniform_real_distribution<float> ph(0.f, 6.283f);
+    std::uniform_int_distribution<int>   tp(0, 2);
+    for (int i = 0; i < 10; ++i) {
+        float a = ang(rng);
+        float s = spd(rng);
+        m_driftObjs.push_back({ px(rng), py(rng), std::cos(a)*s, std::sin(a)*s,
+                                 ang(rng), (ang(rng) - 3.14f) * 0.15f,
+                                 tp(rng), sc(rng), ph(rng) });
+    }
+}
+
+void MainMenuScene::renderDriftObjs(SDL_Renderer* r) const {
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    for (const auto& obj : m_driftObjs) {
+        float pulse = 0.3f + 0.2f * std::sin(m_time * 0.8f + obj.phase);
+        Uint8 alpha = (Uint8)(pulse * 60.f);
+
+        SDL_SetRenderDrawColor(r, 0, 160, 220, alpha);
+
+        float cx = obj.x, cy = obj.y;
+        float s = obj.scale * 22.f;
+        float a = obj.angle;
+
+        // Build verts based on type
+        std::vector<SDL_Point> pts;
+        int sides = (obj.type == 0) ? 4 : (obj.type == 1) ? 3 : 6;
+        float step = 6.283f / sides;
+        float offset = (obj.type == 0) ? 0.785f : 0.f;  // diamond: 45° offset
+        for (int i = 0; i <= sides; ++i) {
+            float t = offset + a + i * step;
+            pts.push_back({ (int)(cx + std::cos(t) * s), (int)(cy + std::sin(t) * s) });
+        }
+        SDL_RenderDrawLines(r, pts.data(), (int)pts.size());
+    }
+}
+
 void MainMenuScene::onEnter(SceneContext& ctx) {
     m_time   = 0.f;
     m_pulse  = 0.f;
     m_cursor = MenuItem::NewRun;
+    spawnDriftObjs();
     static constexpr const char* MENU_TRACK = "assets/music/Karl Casey - Jason Goes to Hell.mp3";
     if (ctx.audio) {
         // Restore full user volume (combat scene may have reduced it)
@@ -125,6 +172,9 @@ void MainMenuScene::selectCurrent(SceneContext& ctx) {
     switch (m_cursor) {
         case MenuItem::NewRun:  startNewRun(ctx);  break;
         case MenuItem::Endless: startEndless(ctx); break;
+        case MenuItem::Leaderboard:
+            ctx.scenes->replace(std::make_unique<LeaderboardScene>());
+            break;
         case MenuItem::Shop:
             ctx.scenes->replace(std::make_unique<ShopScene>());
             break;
@@ -213,6 +263,19 @@ void MainMenuScene::startEndless(SceneContext& ctx) {
 void MainMenuScene::update(float dt, SceneContext&) {
     m_time  += dt;
     m_pulse += dt * 2.5f;
+
+    float W = (float)Constants::SCREEN_W;
+    float H = (float)Constants::SCREEN_H;
+    for (auto& obj : m_driftObjs) {
+        obj.x     += obj.vx * dt;
+        obj.y     += obj.vy * dt;
+        obj.angle += obj.spin * dt;
+        // Wrap at screen edges (with margin so shapes don't pop in)
+        if (obj.x < -60.f) obj.x += W + 120.f;
+        if (obj.x > W+60.f) obj.x -= W + 120.f;
+        if (obj.y < -60.f) obj.y += H + 120.f;
+        if (obj.y > H+60.f) obj.y -= H + 120.f;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +288,7 @@ void MainMenuScene::render(SceneContext& ctx) {
 
     vr->clear();
     vr->drawGrid(15, 20, 50);
+    renderDriftObjs(r);
 
     // Animated diagonal scan lines for atmosphere
     float scanY = std::fmod(m_time * 60.f, (float)Constants::SCREEN_H);

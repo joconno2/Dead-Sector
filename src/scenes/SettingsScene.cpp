@@ -1,4 +1,5 @@
 #include "SettingsScene.hpp"
+#include "KeybindsScene.hpp"
 #include "MainMenuScene.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
@@ -11,6 +12,8 @@
 
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <string>
 
@@ -49,6 +52,8 @@ void SettingsScene::onEnter(SceneContext& ctx) {
     int w         = ctx.saveData ? ctx.saveData->windowedWidth  : 1280;
     int h         = ctx.saveData ? ctx.saveData->windowedHeight : 720;
     m_resIdx      = findResolutionIndex(w, h);
+    m_callsignBuf = ctx.saveData ? ctx.saveData->playerName : "RUNNER";
+    m_editingCallsign = false;
 }
 
 void SettingsScene::applyVolumes(SceneContext& ctx) const {
@@ -75,7 +80,18 @@ void SettingsScene::save(SceneContext& ctx) const {
     SaveSystem::save(*ctx.saveData);
 }
 
+void SettingsScene::commitCallsign(SceneContext& ctx) {
+    if (m_callsignBuf.empty()) m_callsignBuf = "RUNNER";
+    if (ctx.saveData) {
+        ctx.saveData->playerName = m_callsignBuf;
+        SaveSystem::save(*ctx.saveData);
+    }
+    SDL_StopTextInput();
+    m_editingCallsign = false;
+}
+
 void SettingsScene::goBack(SceneContext& ctx) {
+    if (m_editingCallsign) { commitCallsign(ctx); return; }
     save(ctx);
     ctx.scenes->replace(std::make_unique<MainMenuScene>());
 }
@@ -107,6 +123,35 @@ void SettingsScene::changeValue(int delta, SceneContext& ctx) {
 // ---------------------------------------------------------------------------
 
 void SettingsScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
+    // --- Text input mode for callsign ---
+    if (m_editingCallsign) {
+        if (ev.type == SDL_TEXTINPUT) {
+            for (char c : std::string(ev.text.text)) {
+                if ((int)m_callsignBuf.size() < 12 &&
+                    (std::isalnum((unsigned char)c) || c == '_' || c == '-'))
+                    m_callsignBuf += (char)std::toupper((unsigned char)c);
+            }
+            return;
+        }
+        if (ev.type == SDL_KEYDOWN) {
+            switch (ev.key.keysym.sym) {
+            case SDLK_BACKSPACE:
+                if (!m_callsignBuf.empty()) m_callsignBuf.pop_back();
+                break;
+            case SDLK_RETURN: case SDLK_KP_ENTER:
+                commitCallsign(ctx);
+                break;
+            case SDLK_ESCAPE:
+                m_callsignBuf = ctx.saveData ? ctx.saveData->playerName : "RUNNER";
+                SDL_StopTextInput();
+                m_editingCallsign = false;
+                break;
+            default: break;
+            }
+        }
+        return;
+    }
+
     bool up = false, down = false, left = false, right = false;
     bool confirm = false, back = false;
 
@@ -138,8 +183,19 @@ void SettingsScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
     if (down)  m_cursor = (Row)(((int)m_cursor + 1) % rows);
     if (left)  changeValue(-1, ctx);
     if (right) changeValue(+1, ctx);
-    if (confirm && m_cursor == Row::Back) goBack(ctx);
-    if (back)  goBack(ctx);
+    if (confirm) {
+        if (m_cursor == Row::Back) {
+            goBack(ctx);
+        } else if (m_cursor == Row::Callsign) {
+            m_callsignBuf = ctx.saveData ? ctx.saveData->playerName : "RUNNER";
+            SDL_StartTextInput();
+            m_editingCallsign = true;
+        } else if (m_cursor == Row::KeybindsInfo) {
+            save(ctx);
+            ctx.scenes->replace(std::make_unique<KeybindsScene>());
+        }
+    }
+    if (back) goBack(ctx);
 }
 
 void SettingsScene::update(float dt, SceneContext&) {
@@ -161,7 +217,7 @@ void SettingsScene::render(SceneContext& ctx) {
 
     if (!ctx.hud) { SDL_RenderPresent(r); return; }
 
-    int panelW = 580, panelH = 380;
+    int panelW = 640, panelH = 420;
     int panelX = Constants::SCREEN_W / 2 - panelW / 2;
     int panelY = Constants::SCREEN_H / 2 - panelH / 2;
 
@@ -177,7 +233,15 @@ void SettingsScene::render(SceneContext& ctx) {
     SDL_SetRenderDrawColor(r, 0, 100, 70, 160);
     SDL_RenderDrawLine(r, panelX+12, panelY+46, panelX+panelW-12, panelY+46);
 
-    // Build entry list
+    // Callsign display (with blinking cursor when editing)
+    std::string callsignDisplay;
+    if (m_editingCallsign) {
+        bool blink = (int)(m_time * 2.f) % 2 == 0;
+        callsignDisplay = m_callsignBuf + (blink ? "_" : " ");
+    } else {
+        callsignDisplay = ctx.saveData ? ctx.saveData->playerName : "RUNNER";
+    }
+
     struct Entry { const char* label; std::string value; bool separator; };
     std::string resStr = (m_displayMode == DISP_BORDERLESS)
                          ? "NATIVE DESKTOP"
@@ -186,22 +250,25 @@ void SettingsScene::render(SceneContext& ctx) {
     Entry entries[] = {
         { "DISPLAY MODE",  dispModeName(m_displayMode), false },
         { "RESOLUTION",    resStr,                      false },
-        { "MUSIC VOLUME",  volBar(m_musicVol),           true  },  // separator before this
+        { "MUSIC VOLUME",  volBar(m_musicVol),           true  },
         { "SFX VOLUME",    volBar(m_sfxVol),             false },
-        { "KEYBINDS",      "ARROW KEYS / WASD",          true  },  // separator before this
+        { "CALLSIGN",      callsignDisplay,              true  },
+        { "KEYBINDS",      "CONFIGURE >>",               false },
         { "BACK",          "",                           false },
     };
 
     int ry = panelY + 58;
     for (int i = 0; i < (int)Row::COUNT; ++i) {
-        bool sel     = (m_cursor == (Row)i);
-        float pulse  = sel ? (0.5f + 0.5f * std::sin(m_time * 4.f)) : 0.f;
+        bool sel    = (m_cursor == (Row)i);
+        bool isCS   = ((Row)i == Row::Callsign);
+        float pulse = sel ? (0.5f + 0.5f * std::sin(m_time * 4.f)) : 0.f;
         SDL_Color selCol  = { 0, (Uint8)(200 + 40*pulse), (Uint8)(160 + 60*pulse), 255 };
         SDL_Color normCol = { 80, 140, 120, 200 };
-        SDL_Color valCol  = { 180, 220, 100, 230 };
+        SDL_Color valCol  = (isCS && m_editingCallsign)
+                            ? SDL_Color{ 255, 220, 60, 255 }
+                            : SDL_Color{ 180, 220, 100, 230 };
         SDL_Color dimVal  = { 120, 150, 110, 180 };
 
-        // Separator line before some groups
         if (entries[i].separator) {
             SDL_SetRenderDrawColor(r, 0, 80, 60, 100);
             SDL_RenderDrawLine(r, panelX+12, ry-8, panelX+panelW-12, ry-8);
@@ -219,18 +286,27 @@ void SettingsScene::render(SceneContext& ctx) {
         ctx.hud->drawLabel(labelTxt.c_str(), panelX+16, ry, labelCol);
 
         if (!entries[i].value.empty()) {
-            // For resolution row when borderless, dim it since it's not adjustable
             SDL_Color vCol = (i == (int)Row::Resolution && m_displayMode == DISP_BORDERLESS)
-                             ? dimVal
-                             : (sel ? selCol : valCol);
+                             ? dimVal : valCol;
             ctx.hud->drawLabel(entries[i].value.c_str(), panelX+260, ry, vCol);
+        }
+
+        if (isCS && sel && !m_editingCallsign) {
+            SDL_Color hint = { 60, 140, 100, 160 };
+            ctx.hud->drawLabel("ENTER to edit", panelX+420, ry, hint);
+        }
+        if ((Row)i == Row::KeybindsInfo && sel) {
+            SDL_Color hint = { 60, 140, 100, 160 };
+            ctx.hud->drawLabel("ENTER to open", panelX+420, ry, hint);
         }
 
         ry += 42;
     }
 
     SDL_Color hintCol = { 60, 100, 80, 160 };
-    std::string hint = "L/R: adjust   UP/DOWN: navigate   ESC: save & back";
+    const char* hint = m_editingCallsign
+        ? "A-Z 0-9 _ -   ENTER: confirm   ESC: cancel"
+        : "L/R: adjust   UP/DN: navigate   ESC: back";
     int hintW = ctx.hud->measureText(hint);
     ctx.hud->drawLabel(hint, panelX + panelW/2 - hintW/2, panelY+panelH-24, hintCol);
 

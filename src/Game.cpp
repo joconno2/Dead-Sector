@@ -9,6 +9,7 @@
 #include "systems/ModSystem.hpp"
 #include "systems/ProgramSystem.hpp"
 #include "audio/AudioSystem.hpp"
+#include "steam/SteamManager.hpp"
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -64,6 +65,9 @@ bool Game::init(int argc, char* argv[]) {
     m_audio     = std::make_unique<AudioSystem>();
     m_audio->init();
 
+    m_steam = std::make_unique<SteamManager>();
+    m_steam->init();  // no-op when STEAM_ENABLED is not defined
+
     // Build the shared context passed to all scenes
     m_ctx.window    = m_window;
     m_ctx.renderer  = m_renderer;
@@ -75,6 +79,7 @@ bool Game::init(int argc, char* argv[]) {
     m_ctx.programs  = m_programs.get();
     m_ctx.running   = &m_running;
     m_ctx.audio     = m_audio.get();
+    m_ctx.steam     = m_steam.get();
 
     // Open first available game controller
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
@@ -132,6 +137,7 @@ bool Game::init(int argc, char* argv[]) {
 
 void Game::shutdown() {
     m_scenes.reset();
+    if (m_steam) m_steam->shutdown();
     m_vrenderer.reset();
     m_hud.reset();
     m_nodeMap.reset();
@@ -188,6 +194,7 @@ void Game::run() {
 
         accumulator += elapsed;
         while (accumulator >= FIXED_TICKS) {
+            m_steam->tick();
             m_debug.update(FIXED_DT, m_ctx);
             if (!m_debug.isOpen())
                 m_scenes->update(FIXED_DT, m_ctx);

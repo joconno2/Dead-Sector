@@ -2,6 +2,15 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include "Bindings.hpp"
+
+static constexpr int MAX_LEADERBOARD_ENTRIES = 10;
+
+struct ScoreEntry {
+    std::string name;
+    int         score = 0;
+    int         wave  = 0;  // endless: wave reached; 0 for normal runs
+};
 
 struct SaveData {
     int  credits    = 0;
@@ -18,6 +27,14 @@ struct SaveData {
     std::vector<std::string> purchases;   // shop item IDs already bought
     std::vector<std::string> goldenHulls; // hulls that completed a world-3 run victory
 
+    // Key bindings
+    Bindings                bindings;
+
+    // Leaderboard
+    std::string             playerName   = "RUNNER";
+    std::vector<ScoreEntry> normalScores;    // top MAX_LEADERBOARD_ENTRIES, descending
+    std::vector<ScoreEntry> endlessScores;   // top MAX_LEADERBOARD_ENTRIES, descending
+
     bool hasPurchase(const std::string& id) const {
         return std::find(purchases.begin(), purchases.end(), id) != purchases.end();
     }
@@ -29,6 +46,17 @@ struct SaveData {
     }
     void markGolden(const std::string& hullId) {
         if (!isGolden(hullId)) goldenHulls.push_back(hullId);
+    }
+
+    // Insert a finished run score; keeps list sorted and capped at MAX_LEADERBOARD_ENTRIES
+    void submitScore(bool endless, int score, int wave = 0) {
+        auto& list = endless ? endlessScores : normalScores;
+        ScoreEntry e; e.name = playerName; e.score = score; e.wave = wave;
+        list.push_back(e);
+        std::sort(list.begin(), list.end(),
+                  [](const ScoreEntry& a, const ScoreEntry& b){ return a.score > b.score; });
+        if ((int)list.size() > MAX_LEADERBOARD_ENTRIES)
+            list.resize(MAX_LEADERBOARD_ENTRIES);
     }
 };
 

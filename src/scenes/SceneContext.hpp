@@ -11,6 +11,7 @@ class NodeMap;
 class ModSystem;
 class ProgramSystem;
 class AudioSystem;
+class SteamManager;
 
 struct SceneContext {
     SDL_Window*         window     = nullptr;
@@ -24,6 +25,7 @@ struct SceneContext {
     SDL_GameController* controller = nullptr;
     bool*               running    = nullptr;
     AudioSystem*        audio      = nullptr;
+    SteamManager*       steam      = nullptr;
 
     // Persistent save data
     SaveData*           saveData   = nullptr;

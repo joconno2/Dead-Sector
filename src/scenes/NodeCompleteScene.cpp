@@ -33,21 +33,21 @@ static constexpr int CARD_Y0   = (Constants::SCREEN_H - CARD_H) / 2 + 20;
 // ---------------------------------------------------------------------------
 struct BonusDef { const char* name; int minAmt; int maxAmt; };
 static const BonusDef BONUS_POOL[] = {
-    {"CREDIT CARD DUMP",       500,  2500},
-    {"BANK TRANSFER SKIM",     800,  3500},
-    {"CRYPTO WALLET DRAIN",    300,  8000},
-    {"CORPORATE PAYROLL",     2000, 12000},
-    {"DARK WEB SALE",          400,  2000},
-    {"BIOMETRIC BYPASS FEE",   600,  3000},
-    {"ZERO-DAY EXPLOIT",      1000,  5000},
-    {"ICE BOUNTY",             200,   900},
-    {"TRACE EVASION FEE",      300,  1500},
-    {"SWISS ACCOUNT SKIM",     900,  4000},
-    {"GHOST PROTOCOL PAYOUT",  500,  2500},
-    {"NEURAL LACE EXPORT",     700,  3500},
-    {"PROPRIETARY KEYS SOLD", 1200,  6000},
-    {"RANSOMWARE COLLECT",    1500,  7000},
-    {"SATELLITE UPLINK SOLD",  800,  3000},
+    {"CREDIT CARD DUMP",       20,  120},
+    {"BANK TRANSFER SKIM",     30,  150},
+    {"CRYPTO WALLET DRAIN",    15,  200},
+    {"CORPORATE PAYROLL",      60,  300},
+    {"DARK WEB SALE",          20,   90},
+    {"BIOMETRIC BYPASS FEE",   25,  120},
+    {"ZERO-DAY EXPLOIT",       40,  180},
+    {"ICE BOUNTY",             10,   50},
+    {"TRACE EVASION FEE",      15,   70},
+    {"SWISS ACCOUNT SKIM",     35,  160},
+    {"GHOST PROTOCOL PAYOUT",  20,  100},
+    {"NEURAL LACE EXPORT",     30,  140},
+    {"PROPRIETARY KEYS SOLD",  45,  220},
+    {"RANSOMWARE COLLECT",     50,  250},
+    {"SATELLITE UPLINK SOLD",  30,  120},
 };
 static constexpr int BONUS_POOL_SIZE = (int)(sizeof(BONUS_POOL) / sizeof(BONUS_POOL[0]));
 
@@ -277,6 +277,16 @@ void NodeCompleteScene::renderResult(SceneContext& ctx) {
         vr->drawGlowLine(a, b, {0,220,100});
     }
     vr->drawCRTOverlay();
+
+    // Entrance flash: bright cyan burst that fades in first 0.35s
+    if (m_timer < 0.35f) {
+        float t = 1.f - m_timer / 0.35f;
+        Uint8 a = (Uint8)(t * t * 180.f);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, 0, 220, 160, a);
+        SDL_Rect full = { 0, 0, Constants::SCREEN_W, Constants::SCREEN_H };
+        SDL_RenderFillRect(r, &full);
+    }
 
     if (!ctx.hud) { SDL_RenderPresent(r); return; }
 

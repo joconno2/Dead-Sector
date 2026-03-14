@@ -1,4 +1,5 @@
 #include "CombatScene.hpp"
+#include "core/Bindings.hpp"
 #include "audio/AudioSystem.hpp"
 #include "SceneContext.hpp"
 #include "SceneManager.hpp"
@@ -50,7 +51,8 @@ void CombatScene::onEnter(SceneContext& ctx) {
         for (int i = 0; i < stacks; ++i) m_scoreMult *= 1.20f;
     }
 
-    m_audio = ctx.audio;
+    m_audio      = ctx.audio;
+    m_controller = ctx.controller;
     // Combat music plays at 65% of user's preferred volume — the track is
     // intrinsically loud and would otherwise drown out menu music by comparison.
     int userMusicVol = ctx.saveData ? ctx.saveData->musicVolume : 80;
@@ -98,6 +100,10 @@ void CombatScene::onEnter(SceneContext& ctx) {
         if (m_audio) m_audio->playThreshold();
         m_thresholdFlash    = 1.f;
         m_thresholdFlashPct = pct;
+        if (m_controller) {
+            Uint16 lo = (Uint16)(0x1500 * (pct / 25));
+            SDL_GameControllerRumble(m_controller, lo, lo / 2, 150u + (Uint32)(pct / 25) * 50u);
+        }
     });
 }
 
@@ -217,6 +223,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 ev.avatar->shieldTimer = 0.8f;
                 ev.avatar->shielded    = true;
                 m_trace.onHit();
+                if (m_controller) SDL_GameControllerRumble(m_controller, 0x2000, 0x3000, 150);
                 if (mods && mods->hasReactivePlating())
                     for (auto& e : m_hunters)   if (e->alive && (e->pos-ev.avatar->pos).length()<=150.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
                 return;
@@ -245,6 +252,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             m_deathPos = ev.avatar->pos;
             m_deathTimer = 1.8f;
             m_shakeTimer = m_shakeDuration = 0.5f;
+            if (m_controller) SDL_GameControllerRumble(m_controller, 0x6000, 0xA000, 400);
             if (m_audio) m_audio->stopMusic();
             m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 28, 18.f, 460.f);
             m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 36);
@@ -258,6 +266,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 ev.avatar->shieldTimer = 0.8f;
                 ev.avatar->shielded    = true;
                 m_trace.onHit();
+                if (m_controller) SDL_GameControllerRumble(m_controller, 0x2000, 0x3000, 150);
                 return;
             }
             ev.enemyProj->alive = false;
@@ -276,6 +285,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             m_deathPos = ev.avatar->pos;
             m_deathTimer = 1.8f;
             m_shakeTimer = m_shakeDuration = 0.5f;
+            if (m_controller) SDL_GameControllerRumble(m_controller, 0x6000, 0xA000, 400);
             if (m_audio) m_audio->stopMusic();
             m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 28, 18.f, 460.f);
             m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 36);
@@ -294,6 +304,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 ev.avatar->shieldTimer = 0.8f;
                 ev.avatar->shielded    = true;
                 m_trace.onHit();
+                if (m_controller) SDL_GameControllerRumble(m_controller, 0x2000, 0x3000, 150);
                 return;
             }
             ev.avatar->alive = false;
@@ -310,6 +321,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             m_deathPos = ev.avatar->pos;
             m_deathTimer = 1.8f;
             m_shakeTimer = m_shakeDuration = 0.5f;
+            if (m_controller) SDL_GameControllerRumble(m_controller, 0x6000, 0xA000, 400);
             if (m_audio) m_audio->stopMusic();
             m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 28, 18.f, 460.f);
             m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 36);
@@ -352,6 +364,9 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_mines.clear();
     m_dataPackets.clear();
 
+    m_drones.clear();
+    m_shockwaves.clear();
+    m_beams.clear();
     m_particles.clear();
     m_fragments.clear();
     m_trace.reset();
@@ -585,29 +600,33 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     const bool hasRicochetMod = ctx.mods && ctx.mods->hasRicochet();
 
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
-    m_input.thrustForward = keys[SDL_SCANCODE_UP]   || keys[SDL_SCANCODE_W];
-    m_input.rotLeft       = keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_A];
-    m_input.rotRight      = keys[SDL_SCANCODE_RIGHT]|| keys[SDL_SCANCODE_D];
-    m_input.fire          = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT]
-                          || keys[SDL_SCANCODE_LCTRL];
-    m_input.prog0 = keys[SDL_SCANCODE_Q];
-    m_input.prog1 = keys[SDL_SCANCODE_E];
-    m_input.prog2 = keys[SDL_SCANCODE_R];
+    const Bindings& kb = ctx.saveData ? ctx.saveData->bindings : Bindings{};
+    m_input.thrustForward = keys[SDL_SCANCODE_UP]    || keys[kb.thrust];
+    m_input.rotLeft       = keys[SDL_SCANCODE_LEFT]  || keys[kb.rotLeft];
+    m_input.rotRight      = keys[SDL_SCANCODE_RIGHT] || keys[kb.rotRight];
+    m_input.fire          = keys[kb.fire] || keys[SDL_SCANCODE_RSHIFT];
+    m_input.prog0 = keys[kb.prog0];
+    m_input.prog1 = keys[kb.prog1];
+    m_input.prog2 = keys[kb.prog2];
 
     if (ctx.controller) {
         constexpr Sint16 DEAD = 8000;
         Sint16 lx = SDL_GameControllerGetAxis(ctx.controller, SDL_CONTROLLER_AXIS_LEFTX);
         Sint16 rt = SDL_GameControllerGetAxis(ctx.controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
-        if (lx < -DEAD || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT))  m_input.rotLeft  = true;
-        if (lx >  DEAD || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) m_input.rotRight = true;
-        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_A) ||
-            SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_UP))
+        if (lx < -DEAD || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+                       || SDL_GameControllerGetButton(ctx.controller, kb.ctlRotLeft))
+            m_input.rotLeft  = true;
+        if (lx >  DEAD || SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+                       || SDL_GameControllerGetButton(ctx.controller, kb.ctlRotRight))
+            m_input.rotRight = true;
+        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_DPAD_UP) ||
+            SDL_GameControllerGetButton(ctx.controller, kb.ctlThrust))
             m_input.thrustForward = true;
-        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) || rt > DEAD)
+        if (rt > DEAD || SDL_GameControllerGetButton(ctx.controller, kb.ctlFire))
             m_input.fire = true;
-        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_X)) m_input.prog0 = true;
-        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_Y)) m_input.prog1 = true;
-        if (SDL_GameControllerGetButton(ctx.controller, SDL_CONTROLLER_BUTTON_B)) m_input.prog2 = true;
+        if (SDL_GameControllerGetButton(ctx.controller, kb.ctlProg0)) m_input.prog0 = true;
+        if (SDL_GameControllerGetButton(ctx.controller, kb.ctlProg1)) m_input.prog1 = true;
+        if (SDL_GameControllerGetButton(ctx.controller, kb.ctlProg2)) m_input.prog2 = true;
     }
 
     const HullStats& hs = m_avatar ? m_avatar->hullStats : statsForHull(HullType::Delta);
@@ -716,6 +735,52 @@ void CombatScene::update(float dt, SceneContext& ctx) {
             ctx.programs->setCooldownMultiplier(m_baseCdMult);
     }
     if (m_decoyTimer > 0.f) m_decoyTimer -= dt;
+
+    // Orbital attack drones (FRAG program)
+    {
+        constexpr float ORBIT_R   = 55.f;
+        constexpr float ORBIT_SPD = 1.8f;
+        constexpr float FIRE_INT  = 0.45f;
+        for (auto& d : m_drones) {
+            d.life       -= dt;
+            d.orbitAngle += ORBIT_SPD * dt;
+            d.fireTimer  -= dt;
+            if (d.fireTimer <= 0.f && m_avatar && m_avatar->alive) {
+                d.fireTimer = FIRE_INT;
+                Vec2 dpos = m_avatar->pos + Vec2::fromAngle(d.orbitAngle) * ORBIT_R;
+                // Aim at nearest ICE within 380px, otherwise fire outward
+                Entity* target = nullptr; float best = 380.f;
+                auto checkT = [&](Entity* e) {
+                    if (!e->alive) return;
+                    float dist = (e->pos - dpos).length();
+                    if (dist < best) { best = dist; target = e; }
+                };
+                for (auto& h  : m_hunters)    checkT(h.get());
+                for (auto& s  : m_sentries)   checkT(s.get());
+                for (auto& sp : m_spawnerICE) checkT(sp.get());
+                for (auto& ph : m_phantoms)   checkT(ph.get());
+                Vec2 dir   = target ? (target->pos - dpos).normalized() : Vec2::fromAngle(d.orbitAngle);
+                float ang  = std::atan2(dir.y, dir.x);
+                m_pendingProjectiles.emplace_back(
+                    std::make_unique<Projectile>(dpos, dir * Constants::PROJ_SPEED * 0.85f, ang));
+            }
+        }
+        m_drones.erase(std::remove_if(m_drones.begin(), m_drones.end(),
+            [](const Drone& d){ return d.life <= 0.f; }), m_drones.end());
+    }
+
+    // Shockwave rings
+    for (auto& sw : m_shockwaves) {
+        sw.life   -= dt;
+        sw.radius  = sw.maxRadius * (1.f - sw.life / sw.maxLife);
+    }
+    m_shockwaves.erase(std::remove_if(m_shockwaves.begin(), m_shockwaves.end(),
+        [](const Shockwave& sw){ return sw.life <= 0.f; }), m_shockwaves.end());
+
+    // Beam fades
+    for (auto& bm : m_beams) bm.life -= dt;
+    m_beams.erase(std::remove_if(m_beams.begin(), m_beams.end(),
+        [](const Beam& bm){ return bm.life <= 0.f; }), m_beams.end());
 
     // Physics
     std::vector<Entity*> all;
@@ -907,6 +972,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
             m_bossPhaseTimer = 2.8f;
             m_shakeTimer     = 0.35f;
             m_shakeDuration  = 0.35f;
+            if (m_controller) SDL_GameControllerRumble(m_controller, 0x4000, 0x4000, 300);
         }
 
         // Check player projectiles vs boss
@@ -939,6 +1005,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                     m_bossDeathTimer = 2.5f;
                     m_shakeTimer     = 2.0f;
                     m_shakeDuration  = 2.0f;
+                    if (m_controller) SDL_GameControllerRumble(m_controller, 0xFFFF, 0xFFFF, 800);
                 }
                 break;
             }
@@ -970,12 +1037,14 @@ void CombatScene::updateMines(float dt, SceneContext& ctx) {
                         m_avatar->shieldTimer = 0.8f;
                         m_avatar->shielded    = true;
                         m_trace.onHit();
+                        if (m_controller) SDL_GameControllerRumble(m_controller, 0x2000, 0x3000, 150);
                     } else {
                         m_avatar->alive = false;
                         m_trace.onHit();
                         m_deathPos = m_avatar->pos;
                         m_deathTimer = 1.8f;
                         m_shakeTimer = m_shakeDuration = 0.5f;
+                        if (m_controller) SDL_GameControllerRumble(m_controller, 0x6000, 0xA000, 400);
                         if (ctx.audio) ctx.audio->stopMusic();
                         m_fragments.emit(m_deathPos, Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 18, 16.f, 380.f);
                         m_particles.emit(m_deathPos,  Constants::COL_AVATAR_R, Constants::COL_AVATAR_G, Constants::COL_AVATAR_B, 24);
@@ -1007,14 +1076,13 @@ void CombatScene::handleRicochet(bool hasRicochetMod) {
     constexpr float W = Constants::SCREEN_WF;
     constexpr float H = Constants::SCREEN_HF;
     for (auto& p : m_projectiles) {
-        if (!p->alive || !p->noWrap) continue;
-        if (p->bounced) { p->noWrap = false; continue; }
+        if (!p->alive || p->bounced) continue;
         bool hit = false;
         if (p->pos.x < 0.f)  { p->vel.x =  std::abs(p->vel.x); p->pos.x = 0.f;  hit = true; }
         if (p->pos.x > W)    { p->vel.x = -std::abs(p->vel.x); p->pos.x = W;     hit = true; }
         if (p->pos.y < 0.f)  { p->vel.y =  std::abs(p->vel.y); p->pos.y = 0.f;   hit = true; }
         if (p->pos.y > H)    { p->vel.y = -std::abs(p->vel.y); p->pos.y = H;      hit = true; }
-        if (hit) { p->bounced = true; p->noWrap = false; }
+        if (hit) p->bounced = true;  // noWrap stays true — prevents physics wrap after bounce
     }
 }
 
@@ -1029,16 +1097,19 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
     switch (pid) {
     case ProgramID::FRAG: {
         if (!m_avatar) break;
-        const float offsets[] = { -0.349f, 0.f, 0.349f };
-        for (float off : offsets) {
-            float a      = m_avatar->angle + off;
-            Vec2 heading = Vec2::fromAngle(a);
-            Vec2 pos     = m_avatar->pos + heading * 18.f;
-            m_projectiles.emplace_back(std::make_unique<Projectile>(pos, heading * Constants::PROJ_SPEED, a));
-        }
+        // Deploy 2 orbital attack drones at ±90° from facing direction
+        m_drones.push_back({ m_avatar->angle - 1.5708f, 0.f, 8.f });
+        m_drones.push_back({ m_avatar->angle + 1.5708f, 0.f, 8.f });
+        m_particles.emit(m_avatar->pos, 100, 255, 80, 10);
         break;
     }
-    case ProgramID::EMP:     m_empTimer     = 2.0f; break;
+    case ProgramID::EMP:
+        m_empTimer = 2.0f;
+        if (m_avatar) {
+            m_shockwaves.push_back({ m_avatar->pos, 0.f, 320.f, 0.65f, 0.65f, {0, 200, 255} });
+            m_particles.emit(m_avatar->pos, 0, 200, 255, 12);
+        }
+        break;
     case ProgramID::STEALTH: m_stealthTimer = 8.0f; break;
     case ProgramID::SHIELD:
         if (m_avatar) { m_avatar->shieldTimer = 2.0f; m_avatar->shielded = true; }
@@ -1062,12 +1133,27 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
     }
     case ProgramID::FEEDBACK: {
         if (!m_avatar) break;
-        for (auto& e : m_hunters)    if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
-        for (auto& e : m_sentries)   if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
-        for (auto& e : m_spawnerICE) if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
-        for (auto& e : m_phantoms)   if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
-        for (auto& e : m_leeches)    if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
-        for (auto& e : m_mirrors)    if (e->alive && (e->pos-m_avatar->pos).length()<=180.f) { e->alive=false; m_score += static_cast<int>(e->scoreValue() * m_scoreMult); m_iceKilled++; }
+        constexpr float FB_R = 220.f;
+        auto killInRadius = [&](Entity* e) {
+            if (!e->alive) return;
+            if ((e->pos - m_avatar->pos).length() > FB_R) return;
+            e->alive = false;
+            m_score += static_cast<int>(e->scoreValue() * m_scoreMult);
+            m_iceKilled++;
+            m_fragments.emit(e->pos, 255, 140, 0, 6, 10.f, 240.f);
+            m_particles.emit(e->pos, 255, 140, 0, 5);
+        };
+        for (auto& e : m_hunters)    killInRadius(e.get());
+        for (auto& e : m_sentries)   killInRadius(e.get());
+        for (auto& e : m_spawnerICE) killInRadius(e.get());
+        for (auto& e : m_phantoms)   killInRadius(e.get());
+        for (auto& e : m_leeches)    killInRadius(e.get());
+        for (auto& e : m_mirrors)    killInRadius(e.get());
+        // Shockwave ring + central burst
+        m_shockwaves.push_back({ m_avatar->pos, 0.f, FB_R, 0.55f, 0.55f, {255, 140, 0} });
+        m_fragments.emit(m_avatar->pos, 255, 140, 0, 14, 14.f, 320.f);
+        m_particles.emit(m_avatar->pos, 255, 180, 0, 20);
+        m_shakeTimer = m_shakeDuration = 0.35f;
         break;
     }
     case ProgramID::CLONE: {
@@ -1089,14 +1175,32 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
         break;
     case ProgramID::BREACH: {
         if (!m_avatar) break;
-        // Fire a fast, long-lived, piercing projectile in the avatar's facing direction
-        float a      = m_avatar->angle;
-        Vec2  dir    = Vec2::fromAngle(a);
-        Vec2  bpos   = m_avatar->pos + dir * 20.f;
-        auto  beam   = std::make_unique<Projectile>(bpos, dir * (Constants::PROJ_SPEED * 3.f), a);
-        beam->lifetime = 2.0f;
-        beam->pierce   = true;
-        m_projectiles.push_back(std::move(beam));
+        Vec2  dir  = Vec2::fromAngle(m_avatar->angle);
+        // Beam runs from 1500px behind to 1500px ahead (crosses the whole arena)
+        Vec2  from = m_avatar->pos - dir * 1500.f;
+        Vec2  to   = m_avatar->pos + dir * 1500.f;
+        // Kill all ICE within 16px of beam line
+        Vec2 ab = to - from;
+        float abSq = ab.dot(ab);
+        auto killOnBeam = [&](Entity* e) {
+            if (!e->alive) return;
+            Vec2  ap = e->pos - from;
+            float t  = std::max(0.f, std::min(1.f, ap.dot(ab) / abSq));
+            if ((ap - ab * t).length() > 16.f) return;
+            e->alive = false;
+            m_score += static_cast<int>(e->scoreValue() * m_scoreMult);
+            m_iceKilled++;
+            m_fragments.emit(e->pos, 80, 180, 255, 8, 10.f, 280.f);
+            m_particles.emit(e->pos, 80, 180, 255, 6);
+        };
+        for (auto& e : m_hunters)    killOnBeam(e.get());
+        for (auto& e : m_sentries)   killOnBeam(e.get());
+        for (auto& e : m_spawnerICE) killOnBeam(e.get());
+        for (auto& e : m_phantoms)   killOnBeam(e.get());
+        for (auto& e : m_leeches)    killOnBeam(e.get());
+        for (auto& e : m_mirrors)    killOnBeam(e.get());
+        m_beams.push_back({ from, to, 0.45f, 0.45f, {80, 180, 255} });
+        m_shakeTimer = m_shakeDuration = 0.15f;
         break;
     }
     default: break;
@@ -1264,6 +1368,94 @@ void CombatScene::render(SceneContext& ctx) {
         Vec2 off = m_decoyPos - m_avatar->pos;
         for (auto& v : verts) { v.x += off.x; v.y += off.y; }
         vr->drawGlowPoly(verts, dc);
+    }
+
+    // --- Drones: small glowing triangles orbiting the avatar ---
+    if (m_avatar && m_avatar->alive) {
+        for (const auto& drone : m_drones) {
+            float fade = std::min(drone.life / 1.f, 1.f);  // fade in last second
+            GlowColor dc = { (uint8_t)(60 * fade), (uint8_t)(255 * fade), (uint8_t)(100 * fade) };
+            float ax = m_avatar->pos.x + std::cos(drone.orbitAngle) * 55.f;
+            float ay = m_avatar->pos.y + std::sin(drone.orbitAngle) * 55.f;
+            // Small equilateral triangle pointing outward (toward orbit angle)
+            float tip  = drone.orbitAngle;
+            float left = tip + 2.618f;   // +150 deg
+            float right= tip - 2.618f;   // -150 deg
+            float ts = 8.f, bs = 5.f;
+            Vec2 tv  = { ax + std::cos(tip)   * ts, ay + std::sin(tip)   * ts };
+            Vec2 lv  = { ax + std::cos(left)  * bs, ay + std::sin(left)  * bs };
+            Vec2 rv  = { ax + std::cos(right) * bs, ay + std::sin(right) * bs };
+            vr->drawGlowLine(tv, lv, dc);
+            vr->drawGlowLine(lv, rv, dc);
+            vr->drawGlowLine(rv, tv, dc);
+        }
+    }
+
+    // --- Shockwaves: expanding circle rings (EMP cyan, FEEDBACK orange) ---
+    for (const auto& sw : m_shockwaves) {
+        float fade = sw.life / sw.maxLife;
+        uint8_t a = (uint8_t)(200 * fade);
+        GlowColor sc = { (uint8_t)(sw.col.r * fade),
+                         (uint8_t)(sw.col.g * fade),
+                         (uint8_t)(sw.col.b * fade) };
+        constexpr int SWSEGS = 32;
+        // Outer ring
+        for (int i = 0; i < SWSEGS; ++i) {
+            float a0 = i       * 6.28318f / SWSEGS;
+            float a1 = (i + 1) * 6.28318f / SWSEGS;
+            Vec2 p0 = { sw.pos.x + std::cos(a0) * sw.radius, sw.pos.y + std::sin(a0) * sw.radius };
+            Vec2 p1 = { sw.pos.x + std::cos(a1) * sw.radius, sw.pos.y + std::sin(a1) * sw.radius };
+            vr->drawGlowLine(p0, p1, sc);
+        }
+        // Thin inner ring at 70% radius for depth
+        float innerR = sw.radius * 0.70f;
+        if (innerR > 4.f) {
+            GlowColor ic = { (uint8_t)(sw.col.r * fade * 0.5f),
+                             (uint8_t)(sw.col.g * fade * 0.5f),
+                             (uint8_t)(sw.col.b * fade * 0.5f) };
+            for (int i = 0; i < SWSEGS; ++i) {
+                float a0 = i       * 6.28318f / SWSEGS;
+                float a1 = (i + 1) * 6.28318f / SWSEGS;
+                Vec2 p0 = { sw.pos.x + std::cos(a0) * innerR, sw.pos.y + std::sin(a0) * innerR };
+                Vec2 p1 = { sw.pos.x + std::cos(a1) * innerR, sw.pos.y + std::sin(a1) * innerR };
+                vr->drawGlowLine(p0, p1, ic);
+            }
+        }
+    }
+
+    // --- Beams: wide glowing lines that fade over their lifetime ---
+    for (const auto& bm : m_beams) {
+        float fade = bm.life / bm.maxLife;
+        GlowColor bc = { (uint8_t)(bm.col.r * fade),
+                         (uint8_t)(bm.col.g * fade),
+                         (uint8_t)(bm.col.b * fade) };
+        // Wide beam — bright core + falloff passes spanning ~40px total
+        Vec2 dir = bm.to - bm.from;
+        float len = std::sqrt(dir.x*dir.x + dir.y*dir.y);
+        if (len > 0.f) {
+            Vec2 perp = { -dir.y / len, dir.x / len };
+            // Core
+            vr->drawGlowLine(bm.from, bm.to, bc);
+            // Mid band ±4px
+            for (float off : { 4.f, -4.f }) {
+                Vec2 f2 = { bm.from.x + perp.x * off, bm.from.y + perp.y * off };
+                Vec2 t2 = { bm.to.x   + perp.x * off, bm.to.y   + perp.y * off };
+                GlowColor mid = { (uint8_t)(bm.col.r * fade * 0.8f),
+                                  (uint8_t)(bm.col.g * fade * 0.8f),
+                                  (uint8_t)(bm.col.b * fade * 0.8f) };
+                vr->drawGlowLine(f2, t2, mid);
+            }
+            // Outer falloff out to ±20px
+            for (float off : { 8.f, -8.f, 12.f, -12.f, 16.f, -16.f, 20.f, -20.f }) {
+                float t = 1.f - std::abs(off) / 24.f;
+                Vec2 f2 = { bm.from.x + perp.x * off, bm.from.y + perp.y * off };
+                Vec2 t2 = { bm.to.x   + perp.x * off, bm.to.y   + perp.y * off };
+                GlowColor dim = { (uint8_t)(bm.col.r * fade * t * 0.6f),
+                                  (uint8_t)(bm.col.g * fade * t * 0.6f),
+                                  (uint8_t)(bm.col.b * fade * t * 0.6f) };
+                vr->drawGlowLine(f2, t2, dim);
+            }
+        }
     }
 
     if (m_empTimer > 0.f) {
@@ -1482,15 +1674,29 @@ void CombatScene::renderMines(SceneContext& ctx) const {
             }
         }
 
-        // Full pulse flash
+        // Full pulse flash — filled circle via horizontal scanlines
         if (mine->state() == PulseState::Pulse) {
             float R = PulseMine::DAMAGE_RADIUS;
+            int cx = (int)mine->pos.x;
+            int cy = (int)mine->pos.y;
+            int ri = (int)R;
             SDL_SetRenderDrawColor(r, 255, 100, 0, 50);
-            SDL_Rect flash = {
-                (int)(mine->pos.x - R), (int)(mine->pos.y - R),
-                (int)(R * 2),           (int)(R * 2)
-            };
-            SDL_RenderFillRect(r, &flash);
+            for (int dy = -ri; dy <= ri; ++dy) {
+                int hw = (int)std::sqrt((float)(ri * ri - dy * dy));
+                SDL_RenderDrawLine(r, cx - hw, cy + dy, cx + hw, cy + dy);
+            }
+            // Bright rim
+            constexpr int FSEGS = 32;
+            SDL_SetRenderDrawColor(r, 255, 160, 40, 140);
+            for (int i = 0; i < FSEGS; ++i) {
+                float a0 = i       * 6.28318f / FSEGS;
+                float a1 = (i + 1) * 6.28318f / FSEGS;
+                SDL_RenderDrawLine(r,
+                    (int)(mine->pos.x + std::cos(a0) * R),
+                    (int)(mine->pos.y + std::sin(a0) * R),
+                    (int)(mine->pos.x + std::cos(a1) * R),
+                    (int)(mine->pos.y + std::sin(a1) * R));
+            }
         }
     }
 }

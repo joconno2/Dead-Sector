@@ -1,6 +1,7 @@
 #pragma once
 #include "IScene.hpp"
 class AudioSystem;
+#include "renderer/VectorRenderer.hpp"
 #include "world/Node.hpp"
 #include "core/Constants.hpp"
 #include "systems/PhysicsSystem.hpp"
@@ -110,6 +111,27 @@ private:
     bool  m_isGolden       = false; // true when activeHull has a golden clear
     float m_sparkleTimer   = 0.f;  // throttle for gold-ship sparkle particles
 
+    // --- Flashy program effects ---
+    struct Drone {
+        float orbitAngle;  // radians around avatar
+        float fireTimer;   // countdown to next shot
+        float life;        // remaining duration
+    };
+    struct Shockwave {
+        Vec2      pos;
+        float     radius, maxRadius;
+        float     life,   maxLife;
+        GlowColor col;
+    };
+    struct Beam {
+        Vec2      from, to;
+        float     life, maxLife;
+        GlowColor col;
+    };
+    std::vector<Drone>     m_drones;
+    std::vector<Shockwave> m_shockwaves;
+    std::vector<Beam>      m_beams;
+
     struct InputState {
         bool thrustForward = false;
         bool rotLeft       = false;
@@ -119,7 +141,8 @@ private:
     } m_input;
     bool m_prog0Prev = false, m_prog1Prev = false, m_prog2Prev = false;
 
-    AudioSystem* m_audio = nullptr;  // borrowed from SceneContext
+    AudioSystem*        m_audio      = nullptr;  // borrowed from SceneContext
+    SDL_GameController* m_controller = nullptr;  // borrowed; used for haptic rumble
 
     // Pause menu
     bool  m_paused       = false;

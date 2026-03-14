@@ -88,35 +88,32 @@ void VectorRenderer::drawGlitch(float intensity, Uint32 tick) {
     if (intensity < 0.01f) return;
     SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
 
-    int numBands = 1 + (int)(intensity * 4.f);
+    // 1-2 thin bands max — subtle signal corruption, not full-screen noise
+    int numBands = 1 + (intensity > 0.6f ? 1 : 0);
     for (int i = 0; i < numBands; ++i) {
-        // Band drifts slowly using tick as an evolving seed
-        int y = (int)((tick / 4 + (Uint32)(i * 1987)) % (Uint32)Constants::SCREEN_H);
-        int h = 1 + (int)(intensity * 7.f);
+        int y = (int)((tick / 6 + (Uint32)(i * 2311)) % (Uint32)Constants::SCREEN_H);
+        int h = 1 + (int)(intensity * 3.f);  // max 4px tall
 
-        // Mostly cyan/green, occasional red flash at high intensity
-        bool redFlash = (intensity > 0.6f) && (((tick / 8) + i) % 45 == 0);
-        uint8_t rc = redFlash ? 255 :  0;
-        uint8_t gc = redFlash ?  20 : 200;
-        uint8_t bc = redFlash ?  20 : 120;
-        uint8_t ac = (uint8_t)(20 + intensity * 70);
+        bool redFlash = (intensity > 0.8f) && (((tick / 12) + i) % 60 == 0);
+        uint8_t rc = redFlash ? 200 :  0;
+        uint8_t gc = redFlash ?  10 : 180;
+        uint8_t bc = redFlash ?  10 : 100;
+        uint8_t ac = (uint8_t)(10 + intensity * 30);  // much more transparent
 
         SDL_SetRenderDrawColor(m_renderer, rc, gc, bc, ac);
         SDL_Rect band = { 0, y, Constants::SCREEN_W, h };
         SDL_RenderFillRect(m_renderer, &band);
 
-        // Bright leading edge line
-        SDL_SetRenderDrawColor(m_renderer, 180, 255, 200,
-            (uint8_t)(intensity * 160));
+        // Leading edge — dimmer
+        SDL_SetRenderDrawColor(m_renderer, 160, 220, 180, (uint8_t)(intensity * 80));
         SDL_RenderDrawLine(m_renderer, 0, y, Constants::SCREEN_W, y);
     }
 
-    // At very high intensity: occasional full-width bright flash line
-    if (intensity > 0.8f && (tick % 90 < 3)) {
+    // Rare bright flash at extreme trace (>90%) only
+    if (intensity > 0.9f && (tick % 120 < 2)) {
         int fy = (int)((tick * 7) % Constants::SCREEN_H);
-        SDL_SetRenderDrawColor(m_renderer, 100, 255, 180, 80);
+        SDL_SetRenderDrawColor(m_renderer, 80, 220, 150, 50);
         SDL_RenderDrawLine(m_renderer, 0, fy, Constants::SCREEN_W, fy);
-        SDL_RenderDrawLine(m_renderer, 0, fy+1, Constants::SCREEN_W, fy+1);
     }
 }
 

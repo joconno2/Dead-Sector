@@ -11,6 +11,17 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # ---------------------------------------------------------------------------
+# Optional: Steamworks SDK integration
+# Usage: cmake -DUSE_STEAM=ON ...
+# Requires: Steamworks SDK extracted to deps/steamworks/
+#   deps/steamworks/public/        — SDK headers
+#   deps/steamworks/lib/linux64/   — libsteam_api.so   (Linux)
+#   deps/steamworks/lib/win64/     — steam_api64.lib + steam_api64.dll (Windows)
+# AppID: set in steam_appid.txt (480 = Spacewar test app; replace with your real AppID before ship)
+# ---------------------------------------------------------------------------
+option(USE_STEAM "Build with Steamworks SDK support" OFF)
+
+# ---------------------------------------------------------------------------
 # Dependencies
 # ---------------------------------------------------------------------------
 
@@ -53,6 +64,41 @@ target_include_directories(dead-sector PRIVATE src deps/linux)
 target_compile_definitions(dead-sector PRIVATE
     DEAD_SECTOR_VERSION="${PROJECT_VERSION}"
 )
+
+# ---------------------------------------------------------------------------
+# Steam SDK (optional)
+# ---------------------------------------------------------------------------
+if(USE_STEAM)
+    target_compile_definitions(dead-sector PRIVATE STEAM_ENABLED)
+    target_include_directories(dead-sector PRIVATE
+        ${CMAKE_SOURCE_DIR}/deps/steamworks/public
+    )
+    if(WIN32)
+        target_link_libraries(dead-sector PRIVATE
+            ${CMAKE_SOURCE_DIR}/deps/steamworks/lib/win64/steam_api64.lib
+        )
+        # Copy steam_api64.dll next to the executable
+        add_custom_command(TARGET dead-sector POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_SOURCE_DIR}/deps/steamworks/lib/win64/steam_api64.dll"
+                $<TARGET_FILE_DIR:dead-sector>
+            COMMENT "Copying steam_api64.dll"
+        )
+    else()
+        target_link_libraries(dead-sector PRIVATE
+            ${CMAKE_SOURCE_DIR}/deps/steamworks/lib/linux64/libsteam_api.so
+        )
+        add_custom_command(TARGET dead-sector POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_SOURCE_DIR}/deps/steamworks/lib/linux64/libsteam_api.so"
+                $<TARGET_FILE_DIR:dead-sector>
+            COMMENT "Copying libsteam_api.so"
+        )
+    endif()
+    message(STATUS "Steam integration: ON")
+else()
+    message(STATUS "Steam integration: OFF (use -DUSE_STEAM=ON to enable)")
+endif()
 
 # ---------------------------------------------------------------------------
 # Linking

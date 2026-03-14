@@ -22,17 +22,26 @@ RunSummaryScene::RunSummaryScene(int score, int iceKilled, int nodesCleared, boo
 {}
 
 void RunSummaryScene::onEnter(SceneContext& ctx) {
-    m_time    = 0.f;
-    m_canExit = false;
+    m_time        = 0.f;
+    m_canExit     = false;
+    m_isNewRecord = false;
 
     // Commit run stats to save data
     if (ctx.saveData) {
+        // Check if this beats the current #1 before submitting
+        const auto& board = ctx.endlessMode ? ctx.saveData->endlessScores
+                                            : ctx.saveData->normalScores;
+        int prevBest = board.empty() ? 0 : board[0].score;
+
         ctx.saveData->credits    += ctx.runCredits;
         ctx.saveData->totalRuns  += 1;
         ctx.saveData->totalKills += ctx.runKills;
         if (m_score > ctx.saveData->highScore)
             ctx.saveData->highScore = m_score;
+        ctx.saveData->submitScore(ctx.endlessMode, m_score, ctx.endlessWave);
         SaveSystem::save(*ctx.saveData);
+
+        m_isNewRecord = (m_score > 0 && m_score > prevBest);
     }
 
     // Reset run state
@@ -112,6 +121,15 @@ void RunSummaryScene::render(SceneContext& ctx) {
     const char* title = m_victory ? "EXTRACTION COMPLETE" : "RUN TERMINATED";
     SDL_Color titleCol = m_victory ? SDL_Color{0, 220, 100, 255} : SDL_Color{220, 30, 30, 255};
     ctx.hud->drawLabel(title, panelX + 16, panelY + 14, titleCol);
+
+    // New record banner (top-right of panel, pulsing)
+    if (m_isNewRecord) {
+        float p = 0.5f + 0.5f * std::sin(m_time * 5.f);
+        SDL_Color recCol = { (uint8_t)(220 + 35 * p), (uint8_t)(180 * p), 0, 255 };
+        const char* recTxt = "// NEW RECORD //";
+        int rw = ctx.hud->measureText(recTxt);
+        ctx.hud->drawLabel(recTxt, panelX + panelW - rw - 12, panelY + 14, recCol);
+    }
 
     // Separator line
     SDL_SetRenderDrawColor(r, borderCol.r / 2, borderCol.g / 2, borderCol.b / 2, 160);

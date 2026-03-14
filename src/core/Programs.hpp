@@ -38,7 +38,7 @@ struct ProgramDef {
 };
 
 inline constexpr std::array<ProgramDef, 12> PROGRAM_DEFS = {{
-    { ProgramID::FRAG,      "FRAG",      "3-way burst shot",          4.f,  ProgramRarity::Common,   AbilityType::Offense },
+    { ProgramID::FRAG,      "DRONES",    "Deploy 2 attack drones",    4.f,  ProgramRarity::Common,   AbilityType::Offense },
     { ProgramID::EMP,       "EMP",       "Stun all ICE for 2s",      12.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
     { ProgramID::STEALTH,   "STEALTH",   "Halt trace for 8s",        15.f,  ProgramRarity::Rare,     AbilityType::Stealth },
     { ProgramID::SHIELD,    "SHIELD",    "Invincible for 2s",        10.f,  ProgramRarity::Common,   AbilityType::Defense },

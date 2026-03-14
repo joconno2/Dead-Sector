@@ -12,6 +12,7 @@ class NodeMap;
 class ModSystem;
 class ProgramSystem;
 class AudioSystem;
+class SteamManager;
 
 class Game {
 public:
@@ -34,6 +35,7 @@ private:
     std::unique_ptr<ModSystem>      m_mods;
     std::unique_ptr<ProgramSystem>  m_programs;
     std::unique_ptr<AudioSystem>    m_audio;
+    std::unique_ptr<SteamManager>   m_steam;
 
     SaveData     m_saveData;
     SceneContext m_ctx;

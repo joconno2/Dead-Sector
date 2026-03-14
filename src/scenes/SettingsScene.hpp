@@ -1,5 +1,6 @@
 #pragma once
 #include "IScene.hpp"
+#include <string>
 
 class SettingsScene : public IScene {
 public:
@@ -10,7 +11,7 @@ public:
     void render(SceneContext& ctx)                     override;
 
 private:
-    enum class Row { DisplayMode = 0, Resolution, Music, SFX, KeybindsInfo, Back, COUNT };
+    enum class Row { DisplayMode = 0, Resolution, Music, SFX, Callsign, KeybindsInfo, Back, COUNT };
 
     Row   m_cursor      = Row::DisplayMode;
     float m_time        = 0.f;
@@ -19,9 +20,13 @@ private:
     int   m_displayMode = 0;   // 0=windowed, 1=fullscreen, 2=borderless
     int   m_resIdx      = 0;   // index into RESOLUTIONS[]
 
+    bool        m_editingCallsign = false;
+    std::string m_callsignBuf;
+
     void applyVolumes(SceneContext& ctx) const;
     void applyDisplay(SceneContext& ctx) const;
     void save(SceneContext& ctx) const;
     void goBack(SceneContext& ctx);
     void changeValue(int delta, SceneContext& ctx);
+    void commitCallsign(SceneContext& ctx);
 };
