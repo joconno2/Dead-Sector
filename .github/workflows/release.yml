@@ -109,7 +109,7 @@ jobs:
                    AppDir/usr/share/icons/hicolor/256x256/apps
           cp build-linux/dead-sector       AppDir/usr/bin/
           cp installer/dead-sector.desktop AppDir/usr/share/applications/
-          convert assets/icon.png -resize 256x256 /tmp/dead-sector-256.png
+          cp assets/icon.png /tmp/dead-sector-256.png
 
           ARCH=x86_64 ./linuxdeploy.AppImage \
             --appdir AppDir \
