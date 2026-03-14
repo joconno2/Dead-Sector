@@ -21,7 +21,7 @@ Target: Steam Early Access release
 - [ ] **ESRB / PEGI rating** — complete questionnaire (likely E10+ / PEGI 7)
 
 ### Legal
-- [ ] Confirm Karl Casey music licensing for commercial distribution; replace or license before release
+- [x] Confirm Karl Casey music licensing for commercial distribution; replace or license before release
 - [x] Credits scene exists (CreditsScene.cpp — scrolling credits with font, music, engine attribution)
 
 ---
