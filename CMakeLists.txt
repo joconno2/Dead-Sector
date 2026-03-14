@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(DeadSector VERSION 0.3.8 LANGUAGES CXX)
+project(DeadSector VERSION 0.3.9 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -56,7 +56,8 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 # Drop assets/icon.ico (256/128/64/48/32/16 px) before building the Windows package.
 if(WIN32)
     enable_language(RC)
-    add_executable(dead-sector WIN32 ${SOURCES} src/platform/app.rc)
+    configure_file(src/platform/app.rc.in ${CMAKE_BINARY_DIR}/app.rc @ONLY)
+    add_executable(dead-sector WIN32 ${SOURCES} ${CMAKE_BINARY_DIR}/app.rc)
 else()
     add_executable(dead-sector ${SOURCES})
 endif()

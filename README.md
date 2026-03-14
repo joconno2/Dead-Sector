@@ -1,7 +1,6 @@
 # DEAD SECTOR
 
-A cyberpunk vector-arcade shooter inspired by 1980s arcade games and the aesthetics of William Gibson's *Neuromancer*. You are a console cowboy jacking into hostile ICE-defended nodes, navigating a network graph of cyberspace under constant threat of system trace.
-
+A cyberpunk vector-arcade shooter inspired by 1980s arcade games and the aesthetics of William Gibson's *Neuromancer*.
 Built with C++17 and SDL2. Runs on Windows and Linux.
 
 ---

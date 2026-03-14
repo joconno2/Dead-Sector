@@ -1,13 +1,12 @@
 name: Release
 
-# Trigger on version tags: git tag v0.3.0 && git push origin v0.3.0
 on:
   push:
     tags:
       - 'v*.*.*'
 
 permissions:
-  contents: write   # required to create GitHub Releases and upload assets
+  contents: write
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -17,34 +16,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            cmake ninja-build zip nsis imagemagick \
+            cmake ninja-build zip \
             libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev \
             g++-mingw-w64-x86-64 mingw-w64
 
       - name: Fetch Windows SDL2 packages
         run: |
-          mkdir -p deps/windows
-          cd deps/windows
-          wget -q "https://github.com/libsdl-org/SDL/releases/download/release-2.32.4/SDL2-devel-2.32.4-mingw.tar.gz" \
-               -O SDL2-mingw.tar.gz
-          wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-devel-2.24.0-mingw.tar.gz" \
-               -O SDL2_ttf-mingw.tar.gz
-          wget -q "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-devel-2.8.1-mingw.tar.gz" \
-               -O SDL2_mixer-mingw.tar.gz
+          mkdir -p deps/windows && cd deps/windows
+          wget -q "https://github.com/libsdl-org/SDL/releases/download/release-2.32.4/SDL2-devel-2.32.4-mingw.tar.gz" -O SDL2-mingw.tar.gz
+          wget -q "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-devel-2.24.0-mingw.tar.gz" -O SDL2_ttf-mingw.tar.gz
+          wget -q "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-devel-2.8.1-mingw.tar.gz" -O SDL2_mixer-mingw.tar.gz
           tar xf SDL2-mingw.tar.gz
           tar xf SDL2_ttf-mingw.tar.gz
           tar xf SDL2_mixer-mingw.tar.gz
 
-      # -----------------------------------------------------------------------
-      # Steamworks SDK (optional)
-      # -----------------------------------------------------------------------
       - name: Check Steamworks SDK availability
         id: steam
         env:
@@ -52,10 +43,10 @@ jobs:
         run: |
           if [ -n "$SDK_URL" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "flag=ON"        >> "$GITHUB_OUTPUT"
+            echo "flag=-DUSE_STEAM=ON" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "flag=OFF"        >> "$GITHUB_OUTPUT"
+            echo "flag=-DUSE_STEAM=OFF" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Fetch Steamworks SDK
@@ -65,124 +56,63 @@ jobs:
         run: |
           curl -sL "$STEAMWORKS_SDK_URL" -o steamworks_sdk.zip
           unzip -q steamworks_sdk.zip -d steamworks_tmp
-          mkdir -p deps/steamworks
-          mv steamworks_tmp/sdk/public                          deps/steamworks/public
           mkdir -p deps/steamworks/lib
-          mv steamworks_tmp/sdk/redistributable_bin/linux64     deps/steamworks/lib/linux64
-          mv steamworks_tmp/sdk/redistributable_bin/win64       deps/steamworks/lib/win64
+          mv steamworks_tmp/sdk/public                      deps/steamworks/public
+          mv steamworks_tmp/sdk/redistributable_bin/linux64 deps/steamworks/lib/linux64
+          mv steamworks_tmp/sdk/redistributable_bin/win64   deps/steamworks/lib/win64
           rm -rf steamworks_tmp steamworks_sdk.zip
 
-      # -----------------------------------------------------------------------
-      # Linux build + AppImage
-      # -----------------------------------------------------------------------
       - name: Build Linux
         run: |
-          cmake -S . -B build-linux \
+          cmake -S . -B build-linux -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DUSE_STEAM=${{ steps.steam.outputs.flag }} \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+            ${{ steps.steam.outputs.flag }}
           cmake --build build-linux --parallel $(nproc)
 
-      - name: Package Linux zip
+      - name: Package Linux
         run: |
           TAG="${GITHUB_REF_NAME}"
-          mkdir -p dist
           DIR="dist/dead-sector-linux-${TAG}"
           mkdir -p "$DIR"
           cp build-linux/dead-sector "$DIR/"
           cp -r build-linux/assets   "$DIR/"
-          if [ -f "build-linux/libsteam_api.so" ]; then
-            cp build-linux/libsteam_api.so "$DIR/"
-          fi
-          cd dist
-          zip -r "dead-sector-linux-${TAG}.zip" "dead-sector-linux-${TAG}/"
+          [ -f build-linux/libsteam_api.so ] && cp build-linux/libsteam_api.so "$DIR/"
+          cd dist && zip -r "dead-sector-linux-${TAG}.zip" "dead-sector-linux-${TAG}/"
 
-      - name: Build Linux AppImage
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" \
-               -O linuxdeploy.AppImage
-          chmod +x linuxdeploy.AppImage
-
-          mkdir -p AppDir/usr/bin \
-                   AppDir/usr/share/icons/hicolor/256x256/apps
-          cp build-linux/dead-sector AppDir/usr/bin/
-          cp assets/icon.png         AppDir/usr/share/icons/hicolor/256x256/apps/dead-sector.png
-          cp assets/icon.png         AppDir/dead-sector.png
-          cp installer/dead-sector.desktop AppDir/dead-sector.desktop
-          ARCH=x86_64 ./linuxdeploy.AppImage \
-            --appdir AppDir \
-            --output appimage
-
-          find . -maxdepth 1 -name "*.AppImage" ! -name "linuxdeploy*" \
-            -exec mv {} "dist/Dead-Sector-${TAG}-x86_64.AppImage" \;
-
-      # -----------------------------------------------------------------------
-      # Windows cross-compile + NSIS installer
-      # -----------------------------------------------------------------------
       - name: Build Windows
         run: |
-          cmake -S . -B build-windows \
+          cmake -S . -B build-windows -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw64.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DUSE_STEAM=${{ steps.steam.outputs.flag }} \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+            ${{ steps.steam.outputs.flag }}
           cmake --build build-windows --parallel $(nproc)
 
-      - name: Package Windows zip
+      - name: Package Windows
         run: |
           TAG="${GITHUB_REF_NAME}"
           DIR="dist/dead-sector-windows-${TAG}"
           mkdir -p "$DIR"
-          cp build-windows/dead-sector.exe    "$DIR/"
-          cp build-windows/SDL2.dll           "$DIR/"
-          cp build-windows/SDL2_mixer.dll     "$DIR/"
-          cp -r build-windows/assets          "$DIR/"
-          if [ -f "build-windows/steam_api64.dll" ]; then
-            cp build-windows/steam_api64.dll "$DIR/"
-          fi
-          cd dist
-          zip -r "dead-sector-windows-${TAG}.zip" "dead-sector-windows-${TAG}/"
+          cp build-windows/dead-sector.exe "$DIR/"
+          cp build-windows/SDL2.dll        "$DIR/"
+          cp build-windows/SDL2_mixer.dll  "$DIR/"
+          cp -r build-windows/assets       "$DIR/"
+          [ -f build-windows/steam_api64.dll ] && cp build-windows/steam_api64.dll "$DIR/"
+          cd dist && zip -r "dead-sector-windows-${TAG}.zip" "dead-sector-windows-${TAG}/"
 
-      - name: Build Windows installer (NSIS)
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          VER="${TAG#v}"
-          makensis \
-            -DAPP_VERSION="${VER}" \
-            "-DSRC_DIR=dist/dead-sector-windows-${TAG}" \
-            installer/dead-sector.nsi
-          mv "Dead_Sector_Setup_${VER}.exe" "dist/Dead_Sector_Setup_${TAG}.exe"
-
-      # -----------------------------------------------------------------------
-      # Upload artifacts
-      # -----------------------------------------------------------------------
-      - name: Upload Linux artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-artifacts
-          path: |
-            dist/dead-sector-linux-*.zip
-            dist/Dead-Sector-*-x86_64.AppImage
-          if-no-files-found: warn
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-artifacts
-          path: |
-            dist/dead-sector-windows-*.zip
-            dist/Dead_Sector_Setup_*.exe
+          name: linux-windows-artifacts
+          path: dist/*.zip
 
   # ---------------------------------------------------------------------------
-  # macOS — native build on macos-latest
+  # macOS — native build
   # ---------------------------------------------------------------------------
   build-macos:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: brew install cmake ninja sdl2 sdl2_ttf sdl2_mixer
@@ -194,10 +124,10 @@ jobs:
         run: |
           if [ -n "$SDK_URL" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "flag=ON"        >> "$GITHUB_OUTPUT"
+            echo "flag=-DUSE_STEAM=ON" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "flag=OFF"        >> "$GITHUB_OUTPUT"
+            echo "flag=-DUSE_STEAM=OFF" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Fetch Steamworks SDK
@@ -207,58 +137,52 @@ jobs:
         run: |
           curl -sL "$STEAMWORKS_SDK_URL" -o steamworks_sdk.zip
           unzip -q steamworks_sdk.zip -d steamworks_tmp
-          mkdir -p deps/steamworks
-          mv steamworks_tmp/sdk/public              deps/steamworks/public
           mkdir -p deps/steamworks/lib
-          mv steamworks_tmp/sdk/redistributable_bin/osx deps/steamworks/lib/osx
+          mv steamworks_tmp/sdk/public                      deps/steamworks/public
+          mv steamworks_tmp/sdk/redistributable_bin/osx     deps/steamworks/lib/osx
           rm -rf steamworks_tmp steamworks_sdk.zip
 
       - name: Build macOS
         run: |
-          cmake -S . -B build-macos \
+          cmake -S . -B build-macos -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
-            -DUSE_STEAM=${{ steps.steam.outputs.flag }} \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+            ${{ steps.steam.outputs.flag }}
           cmake --build build-macos --parallel $(sysctl -n hw.logicalcpu)
 
       - name: Package macOS
         run: |
           TAG="${GITHUB_REF_NAME}"
-          mkdir -p dist
           DIR="dist/dead-sector-macos-${TAG}"
           mkdir -p "$DIR"
           cp build-macos/dead-sector "$DIR/"
           cp -r build-macos/assets   "$DIR/"
           BREW_LIB="$(brew --prefix)/lib"
           for lib in libSDL2-2.0.0.dylib libSDL2_ttf-2.0.0.dylib libSDL2_mixer-2.0.0.dylib; do
-            if [ -f "$BREW_LIB/$lib" ]; then
-              cp "$BREW_LIB/$lib" "$DIR/"
-              install_name_tool -change \
-                "$(otool -D "$BREW_LIB/$lib" | tail -1)" \
-                "@executable_path/$lib" \
-                "$DIR/dead-sector" 2>/dev/null || true
-            fi
+            [ -f "$BREW_LIB/$lib" ] || continue
+            cp "$BREW_LIB/$lib" "$DIR/"
+            install_name_tool -change \
+              "$(otool -D "$BREW_LIB/$lib" | tail -1)" \
+              "@executable_path/$lib" \
+              "$DIR/dead-sector" 2>/dev/null || true
           done
-          chmod +x "$DIR/dead-sector"
-          cd dist
-          zip -r "dead-sector-macos-${TAG}.zip" "dead-sector-macos-${TAG}/"
+          cd dist && zip -r "dead-sector-macos-${TAG}.zip" "dead-sector-macos-${TAG}/"
 
-      - name: Upload macOS artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: dist/dead-sector-macos-*.zip
 
   # ---------------------------------------------------------------------------
-  # Create GitHub Release (waits for all build jobs)
+  # Publish GitHub Release
   # ---------------------------------------------------------------------------
   release:
     needs: [build-linux-windows, build-macos]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-files
@@ -271,22 +195,11 @@ jobs:
           body: |
             ## Dead Sector ${{ github.ref_name }}
 
-            ### Downloads
             | Platform | File | Notes |
             |---|---|---|
-            | Windows (x64) — Installer | `Dead_Sector_Setup_${{ github.ref_name }}.exe` | Recommended |
-            | Windows (x64) — Portable  | `dead-sector-windows-${{ github.ref_name }}.zip` | Extract & run |
-            | Linux (x64) — AppImage    | `Dead-Sector-${{ github.ref_name }}-x86_64.AppImage` | `chmod +x`, then run |
-            | Linux (x64) — Portable    | `dead-sector-linux-${{ github.ref_name }}.zip` | Requires SDL2 system libs |
-            | macOS                     | `dead-sector-macos-${{ github.ref_name }}.zip` | SDL2 dylibs bundled |
-
-            **Windows installer:** double-click `Dead_Sector_Setup_*.exe`, follow prompts.
-
-            **Linux AppImage:** `chmod +x Dead-Sector-*-x86_64.AppImage && ./Dead-Sector-*-x86_64.AppImage`
-
-            **Linux portable:** requires `libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0` — `apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0`
-
-            **macOS:** extract zip, right-click `dead-sector` → Open (first launch only, to bypass Gatekeeper).
+            | Windows (x64) | `dead-sector-windows-${{ github.ref_name }}.zip` | Extract and run `dead-sector.exe` |
+            | Linux (x64)   | `dead-sector-linux-${{ github.ref_name }}.zip`   | Requires `libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0` |
+            | macOS         | `dead-sector-macos-${{ github.ref_name }}.zip`   | SDL2 bundled — right-click → Open on first launch |
           files: release-files/**
           draft: false
           prerelease: false
