@@ -159,6 +159,24 @@ void SteamManager::unlockAchievement(const char* apiName) {
     SteamUserStats()->StoreStats();
 }
 
+void SteamManager::checkCompletionist() {
+    if (!m_available) return;
+    static const char* PREREQS[] = {
+        ACH_FIRST_KILL,     ACH_FIRST_BOSS,    ACH_CLEAR_WORLD1,  ACH_CLEAR_WORLD2,
+        ACH_FINAL_BREACH,   ACH_GOLDEN_HULL,   ACH_HIGH_TRACE,
+        ACH_KILL_MANTICORE, ACH_KILL_ARCHON,   ACH_KILL_VORTEX,
+        ACH_CHAIN_KILL,     ACH_RICOCHET_KILL, ACH_STEALTH_KILL,  ACH_EMP_MULTI,
+        ACH_SPEEDRUN,       ACH_ALL_PROGRAMS,  ACH_ALL_HULLS,     ACH_ALL_GOLDEN,
+        ACH_LEGENDARY_MOD,  ACH_ENDLESS_10,    ACH_ENDLESS_25,
+    };
+    for (auto ach : PREREQS) {
+        bool achieved = false;
+        SteamUserStats()->GetAchievement(ach, &achieved);
+        if (!achieved) return;
+    }
+    unlockAchievement(ACH_FULL_BREACH);
+}
+
 void SteamManager::submitNormalScore(int score) {
     if (!m_available || !m_impl) return;
     m_impl->findNormal(score);
@@ -208,6 +226,7 @@ bool SteamManager::init()                           { return false; }
 void SteamManager::tick()                           {}
 void SteamManager::shutdown()                       {}
 void SteamManager::unlockAchievement(const char*)   {}
+void SteamManager::checkCompletionist()             {}
 void SteamManager::submitNormalScore(int)           {}
 void SteamManager::submitEndlessScore(int, int)     {}
 void SteamManager::cloudSave(const std::string&)    {}

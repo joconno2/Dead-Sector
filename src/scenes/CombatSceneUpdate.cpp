@@ -1,5 +1,6 @@
 // CombatSceneUpdate.cpp — update, AI, programs, objective, collision helpers
 #include "CombatScene.hpp"
+#include "entities/BossEnemy.hpp"
 #include "audio/AudioSystem.hpp"
 #include "steam/SteamManager.hpp"
 #include "SceneContext.hpp"
@@ -22,6 +23,7 @@
 void CombatScene::update(float dt, SceneContext& ctx) {
     if (m_complete) return;
     if (m_paused) { m_pauseTime += dt; return; }
+    const int killsAtFrameStart = m_iceKilled;
 
     // Avatar death — slow-mo like boss death, music already fading
     if (m_deathTimer > 0.f) {
@@ -155,6 +157,17 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                     }
                 }
 
+                // TWIN_SHOT: fire a parallel twin projectile offset perpendicular
+                if (m_twinShotTimer > 0.f) {
+                    Vec2 h2   = Vec2::fromAngle(m_avatar->angle);
+                    Vec2 perp = { -h2.y, h2.x };
+                    Vec2 twinPos2 = m_avatar->pos + h2 * 18.f + perp * 14.f;
+                    auto twin2 = std::make_unique<Projectile>(twinPos2, h2 * (Constants::PROJ_SPEED * pSpeedMult), m_avatar->angle);
+                    twin2->radius *= pRadMult;
+                    if (hasRicochetMod) twin2->noWrap = true;
+                    m_projectiles.push_back(std::move(twin2));
+                }
+
                 if (scatterCore && m_scatterCount % 4 == 0) {
                     constexpr float SCATTER_SPREAD[] = { -0.436f, 0.436f };  // ±25°
                     for (float off : SCATTER_SPREAD) {
@@ -190,7 +203,79 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         if (m_overclockTimer <= 0.f && ctx.programs)
             ctx.programs->setCooldownMultiplier(m_baseCdMult);
     }
-    if (m_decoyTimer > 0.f) m_decoyTimer -= dt;
+    if (m_decoyTimer    > 0.f) m_decoyTimer    -= dt;
+    if (m_twinShotTimer > 0.f) m_twinShotTimer -= dt;
+
+    // GRAVITY_WELL — pull all ICE toward screen center each frame
+    if (m_gravTimer > 0.f) {
+        m_gravTimer -= dt;
+        Vec2 center = { Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f };
+        const float PULL = 180.f;
+        auto pull = [&](Entity* e) {
+            if (!e->alive) return;
+            Vec2 toCenter = center - e->pos;
+            float dist = toCenter.length();
+            if (dist > 1.f) e->vel = e->vel + toCenter * (PULL * dt / dist);
+        };
+        for (auto& h  : m_hunters)    pull(h.get());
+        for (auto& s  : m_sentries)   pull(s.get());
+        for (auto& sp : m_spawnerICE) pull(sp.get());
+        for (auto& ph : m_phantoms)   pull(ph.get());
+        for (auto& lc : m_leeches)    pull(lc.get());
+        for (auto& mi : m_mirrors)    pull(mi.get());
+    }
+
+    // BEACON — auto-turret fires at nearest ICE every 0.5s
+    if (m_beaconTimer > 0.f) {
+        m_beaconTimer  -= dt;
+        m_beaconFireCd -= dt;
+        if (m_beaconFireCd <= 0.f) {
+            m_beaconFireCd = 0.5f;
+            Entity* target = nullptr; float bestDist = std::numeric_limits<float>::max();
+            auto check = [&](Entity* e) {
+                if (!e->alive) return;
+                float d = (e->pos - m_beaconPos).length();
+                if (d < bestDist) { bestDist = d; target = e; }
+            };
+            for (auto& h  : m_hunters)    check(h.get());
+            for (auto& s  : m_sentries)   check(s.get());
+            for (auto& sp : m_spawnerICE) check(sp.get());
+            for (auto& ph : m_phantoms)   check(ph.get());
+            for (auto& lc : m_leeches)    check(lc.get());
+            for (auto& mi : m_mirrors)    check(mi.get());
+            if (target) {
+                Vec2 dir = (target->pos - m_beaconPos);
+                float len = dir.length();
+                if (len > 0.1f) {
+                    dir = dir * (1.f / len);
+                    float ang = std::atan2(dir.y, dir.x);
+                    auto shot = std::make_unique<Projectile>(
+                        m_beaconPos + dir * 14.f,
+                        dir * Constants::PROJ_SPEED, ang);
+                    m_projectiles.push_back(std::move(shot));
+                }
+            }
+        }
+    }
+
+    // NOVA_RING — burst 8 shots radially every 1.5s
+    if (m_novaTimer > 0.f) {
+        m_novaTimer  -= dt;
+        m_novaFireCd -= dt;
+        if (m_novaFireCd <= 0.f && m_avatar && m_avatar->alive) {
+            m_novaFireCd = 1.5f;
+            constexpr int SPOKES = 8;
+            for (int i = 0; i < SPOKES; ++i) {
+                float a   = i * (6.28318f / SPOKES);
+                Vec2  dir = Vec2::fromAngle(a);
+                auto  p   = std::make_unique<Projectile>(
+                    m_avatar->pos + dir * 16.f,
+                    dir * Constants::PROJ_SPEED, a);
+                m_projectiles.push_back(std::move(p));
+            }
+            if (m_audio) m_audio->playShot();
+        }
+    }
 
     // Physics
     std::vector<Entity*> all;
@@ -287,6 +372,37 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     emitDeathParticles();
     emitDeathFragments();
     sweepDead();
+
+    // ACH_CHAIN_KILL: 5 kills within a 10-second rolling window
+    if (m_steam && !m_chainKillUnlocked) {
+        int delta = m_iceKilled - killsAtFrameStart;
+        if (delta > 0) {
+            m_chainKillCount += delta;
+            m_chainKillTimer  = 10.f;
+            if (m_chainKillCount >= 5) {
+                m_steam->unlockAchievement(ACH_CHAIN_KILL);
+                m_steam->checkCompletionist();
+                m_chainKillUnlocked = true;
+            }
+        } else {
+            m_chainKillTimer -= dt;
+            if (m_chainKillTimer <= 0.f) { m_chainKillTimer = 0.f; m_chainKillCount = 0; }
+        }
+    }
+
+    // ACH_ENDLESS_10 / ACH_ENDLESS_25
+    if (m_config.endless && m_steam) {
+        if (ctx.endlessWave >= 10 && !m_endlessAch10Unlocked) {
+            m_steam->unlockAchievement(ACH_ENDLESS_10);
+            m_steam->checkCompletionist();
+            m_endlessAch10Unlocked = true;
+        }
+        if (ctx.endlessWave >= 25 && !m_endlessAch25Unlocked) {
+            m_steam->unlockAchievement(ACH_ENDLESS_25);
+            m_steam->checkCompletionist();
+            m_endlessAch25Unlocked = true;
+        }
+    }
     m_mines.erase(std::remove_if(m_mines.begin(), m_mines.end(),
                   [](const auto& m){ return !m->alive; }), m_mines.end());
 
@@ -388,7 +504,22 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                     m_boss->alive = false;
                     m_score += static_cast<int>(100.f * m_scoreMult);
                     m_iceKilled++;
-                    if (m_steam) m_steam->unlockAchievement(ACH_FIRST_BOSS);
+                    if (m_steam) {
+                        m_steam->unlockAchievement(ACH_FIRST_BOSS);
+                        switch (m_boss->bossType) {
+                        case BossType::Manticore: m_steam->unlockAchievement(ACH_KILL_MANTICORE); break;
+                        case BossType::Archon:    m_steam->unlockAchievement(ACH_KILL_ARCHON);    break;
+                        case BossType::Vortex:    m_steam->unlockAchievement(ACH_KILL_VORTEX);    break;
+                        }
+                        if (!m_speedrunUnlocked) {
+                            Uint32 elapsed = SDL_GetTicks() - m_combatStartTicks;
+                            if (elapsed <= 2 * 60 * 1000) {
+                                m_steam->unlockAchievement(ACH_SPEEDRUN);
+                                m_speedrunUnlocked = true;
+                            }
+                        }
+                        m_steam->checkCompletionist();
+                    }
                     m_fragments.emit(m_boss->pos, 255, 180, 40, 70, 24.f, 520.f);
                     m_fragments.emit(m_boss->pos, 255, 60,  20, 45, 18.f, 360.f);
                     m_fragments.emit(m_boss->pos, 255, 255, 200, 30, 14.f, 240.f);
@@ -479,6 +610,17 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
     if (!ctx.programs || !ctx.programs->tryActivate(slot)) return;
     ProgramID pid = ctx.programs->slotID(slot);
 
+    // ACH_ALL_PROGRAMS: track each unique program type used this run
+    if (pid != ProgramID::NONE) {
+        ctx.programsUsedThisRun |= static_cast<uint16_t>(1u << static_cast<int>(pid));
+        static constexpr uint16_t ALL_15 = (1u << 15) - 1; // ProgramID 0-14
+        if ((ctx.programsUsedThisRun & ALL_15) == ALL_15 && m_steam && !m_allProgramsUnlocked) {
+            m_steam->unlockAchievement(ACH_ALL_PROGRAMS);
+            m_steam->checkCompletionist();
+            m_allProgramsUnlocked = true;
+        }
+    }
+
     switch (pid) {
     case ProgramID::FRAG: {
         if (!m_avatar) break;
@@ -491,7 +633,24 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
         }
         break;
     }
-    case ProgramID::EMP:     m_empTimer     = 2.0f; break;
+    case ProgramID::EMP:
+        m_empTimer = 2.0f;
+        // ACH_EMP_MULTI: hit 5+ ICE with a single EMP
+        if (m_steam && !m_empMultiUnlocked) {
+            int empHits = 0;
+            for (auto& e : m_hunters)    if (e->alive) empHits++;
+            for (auto& e : m_sentries)   if (e->alive) empHits++;
+            for (auto& e : m_spawnerICE) if (e->alive) empHits++;
+            for (auto& e : m_phantoms)   if (e->alive) empHits++;
+            for (auto& e : m_leeches)    if (e->alive) empHits++;
+            for (auto& e : m_mirrors)    if (e->alive) empHits++;
+            if (empHits >= 5) {
+                m_steam->unlockAchievement(ACH_EMP_MULTI);
+                m_steam->checkCompletionist();
+                m_empMultiUnlocked = true;
+            }
+        }
+        break;
     case ProgramID::STEALTH: m_stealthTimer = 8.0f; break;
     case ProgramID::SHIELD:
         if (m_avatar) { m_avatar->shieldTimer = 2.0f; m_avatar->shielded = true; }
@@ -550,6 +709,23 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
         m_projectiles.push_back(std::move(beam));
         break;
     }
+    case ProgramID::TWIN_SHOT:
+        m_twinShotTimer = 10.0f;
+        break;
+    case ProgramID::BEACON:
+        if (m_avatar) {
+            m_beaconPos    = m_avatar->pos;
+            m_beaconTimer  = 12.0f;
+            m_beaconFireCd = 0.f;  // fire immediately on first tick
+        }
+        break;
+    case ProgramID::NOVA_RING:
+        m_novaTimer  = 10.0f;
+        m_novaFireCd = 0.f;  // burst immediately
+        break;
+    case ProgramID::GRAVITY_WELL:
+        m_gravTimer = 5.0f;
+        break;
     default: break;
     }
 }
@@ -592,8 +768,38 @@ void CombatScene::checkObjective(SceneContext& ctx) {
 // ---------------------------------------------------------------------------
 
 void CombatScene::handleCollisions() {
+    // Pre-state for achievement checks
+    const bool stealthActive = (m_stealthTimer > 0.f);
+    bool hasBounced = false;
+    for (auto& p : m_projectiles)
+        if (p->alive && p->bounced) { hasBounced = true; break; }
+
+    const int preLiveICE = (int)(m_hunters.size() + m_sentries.size() + m_spawnerICE.size() +
+                                 m_phantoms.size() + m_leeches.size() + m_mirrors.size());
+
     m_collision.update(m_avatar.get(), m_projectiles,
                        m_hunters, m_sentries, m_spawnerICE, m_phantoms, m_leeches, m_mirrors, m_enemyProjectiles);
+
+    if (m_steam) {
+        const int postLiveICE = (int)(m_hunters.size() + m_sentries.size() + m_spawnerICE.size() +
+                                      m_phantoms.size() + m_leeches.size() + m_mirrors.size());
+        if (postLiveICE < preLiveICE) {
+            if (stealthActive && !m_stealthKillUnlocked) {
+                m_steam->unlockAchievement(ACH_STEALTH_KILL);
+                m_steam->checkCompletionist();
+                m_stealthKillUnlocked = true;
+            }
+            if (hasBounced && !m_ricochetKillUnlocked) {
+                for (auto& p : m_projectiles)
+                    if (!p->alive && p->bounced) {
+                        m_steam->unlockAchievement(ACH_RICOCHET_KILL);
+                        m_steam->checkCompletionist();
+                        m_ricochetKillUnlocked = true;
+                        break;
+                    }
+            }
+        }
+    }
 }
 
 void CombatScene::sweepDead() {

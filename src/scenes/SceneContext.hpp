@@ -35,6 +35,9 @@ struct SceneContext {
     int                 runKills   = 0;
     int                 runNodes   = 0;
 
+    // Achievement tracking (persists across nodes within a run)
+    uint16_t            programsUsedThisRun = 0; // bitmask: bit N = ProgramID(N) used
+
     // Multi-world run state
     int                 currentWorld = 0;  // 0=SECTOR ALPHA, 1=DEEP NET, 2=THE CORE
 

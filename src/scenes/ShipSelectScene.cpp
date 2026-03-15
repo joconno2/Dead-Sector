@@ -9,6 +9,7 @@
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
 #include "math/Vec2.hpp"
+#include "steam/SteamManager.hpp"
 
 #include <SDL.h>
 #include <cmath>
@@ -37,6 +38,16 @@ void ShipSelectScene::onEnter(SceneContext& ctx) {
         for (int i = 0; i < NUM_HULLS; ++i) {
             HullStats s = statsForHull(HULL_ORDER[i]);
             if (ctx.saveData->activeHull == s.id) { m_cursor = i; break; }
+        }
+        // ACH_ALL_HULLS: check if every hull is now unlocked
+        if (ctx.steam) {
+            bool allUnlocked = true;
+            for (int i = 0; i < NUM_HULLS; ++i)
+                if (!isUnlocked(i, *ctx.saveData)) { allUnlocked = false; break; }
+            if (allUnlocked) {
+                ctx.steam->unlockAchievement(ACH_ALL_HULLS);
+                ctx.steam->checkCompletionist();
+            }
         }
     }
 }

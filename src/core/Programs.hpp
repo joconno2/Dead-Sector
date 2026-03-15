@@ -13,19 +13,23 @@ enum class AbilityType : uint8_t {
 };
 
 enum class ProgramID : uint8_t {
-    FRAG      = 0,  // 3-way spread shot
-    EMP       = 1,  // Stun all ICE for 2s
-    STEALTH   = 2,  // Halt trace growth for 8s
-    SHIELD    = 3,  // Invincibility for 2s
-    OVERDRIVE = 4,  // Speed boost for 5s
-    DECRYPT   = 5,  // Destroy nearest ICE instantly
-    FEEDBACK  = 6,  // Radial damage burst (r=150)
-    CLONE     = 7,  // Decoy draws ICE for 4s
-    OVERCLOCK = 8,  // Halve all cooldowns for 6s
-    BLACKOUT  = 9,  // Erase all enemy projectiles
-    BREACH    = 10, // Piercing beam across screen
-    COUNT     = 11,
-    NONE      = 0xFF  // empty slot sentinel
+    FRAG         = 0,  // 3-way spread shot
+    EMP          = 1,  // Stun all ICE for 2s
+    STEALTH      = 2,  // Halt trace growth for 8s
+    SHIELD       = 3,  // Invincibility for 2s
+    OVERDRIVE    = 4,  // Speed boost for 5s
+    DECRYPT      = 5,  // Destroy nearest ICE instantly
+    FEEDBACK     = 6,  // Radial damage burst (r=150)
+    CLONE        = 7,  // Decoy draws ICE for 4s
+    OVERCLOCK    = 8,  // Halve all cooldowns for 6s
+    BLACKOUT     = 9,  // Erase all enemy projectiles
+    BREACH       = 10, // Piercing beam across screen
+    TWIN_SHOT    = 11, // Every shot also fires a parallel twin for 10s
+    BEACON       = 12, // Auto-turret at drop position for 12s
+    NOVA_RING    = 13, // 8-way auto-burst every 1.5s for 10s
+    GRAVITY_WELL = 14, // Pull all ICE toward center for 5s
+    COUNT        = 15,
+    NONE         = 0xFF  // empty slot sentinel
 };
 
 struct ProgramDef {
@@ -37,19 +41,23 @@ struct ProgramDef {
     AbilityType    abilityType;
 };
 
-inline constexpr std::array<ProgramDef, 12> PROGRAM_DEFS = {{
-    { ProgramID::FRAG,      "DRONES",    "Deploy 2 attack drones",    4.f,  ProgramRarity::Common,   AbilityType::Offense },
-    { ProgramID::EMP,       "EMP",       "Stun all ICE for 2s",      12.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
-    { ProgramID::STEALTH,   "STEALTH",   "Halt trace for 8s",        15.f,  ProgramRarity::Rare,     AbilityType::Stealth },
-    { ProgramID::SHIELD,    "SHIELD",    "Invincible for 2s",        10.f,  ProgramRarity::Common,   AbilityType::Defense },
-    { ProgramID::OVERDRIVE, "OVRDRIVE",  "Speed boost for 5s",        8.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
-    { ProgramID::DECRYPT,   "DECRYPT",   "Delete nearest ICE",        6.f,  ProgramRarity::Rare,     AbilityType::Neural  },
-    { ProgramID::FEEDBACK,  "FEEDBACK",  "Radial burst r=150",        7.f,  ProgramRarity::Rare,     AbilityType::Offense },
-    { ProgramID::CLONE,     "CLONE",     "Decoy draws ICE for 4s",   18.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
-    { ProgramID::OVERCLOCK, "OVERCLOCK", "Halve all cooldowns 6s",   20.f,  ProgramRarity::Rare,     AbilityType::Neural  },
-    { ProgramID::BLACKOUT,  "BLACKOUT",  "Erase all enemy fire",      9.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
-    { ProgramID::BREACH,    "BREACH",    "Piercing beam, full range", 14.f,  ProgramRarity::Rare,     AbilityType::Offense },
-    { ProgramID::NONE,      "------",    "[empty slot]",              0.f,  ProgramRarity::Common,   AbilityType::Neural  },
+inline constexpr std::array<ProgramDef, 16> PROGRAM_DEFS = {{
+    { ProgramID::FRAG,         "DRONES",     "Deploy 2 attack drones",         4.f,  ProgramRarity::Common,   AbilityType::Offense },
+    { ProgramID::EMP,          "EMP",        "Stun all ICE for 2s",           12.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
+    { ProgramID::STEALTH,      "STEALTH",    "Halt trace for 8s",             15.f,  ProgramRarity::Rare,     AbilityType::Stealth },
+    { ProgramID::SHIELD,       "SHIELD",     "Invincible for 2s",             10.f,  ProgramRarity::Common,   AbilityType::Defense },
+    { ProgramID::OVERDRIVE,    "OVRDRIVE",   "Speed boost for 5s",             8.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
+    { ProgramID::DECRYPT,      "DECRYPT",    "Delete nearest ICE",             6.f,  ProgramRarity::Rare,     AbilityType::Neural  },
+    { ProgramID::FEEDBACK,     "FEEDBACK",   "Radial burst r=150",             7.f,  ProgramRarity::Rare,     AbilityType::Offense },
+    { ProgramID::CLONE,        "CLONE",      "Decoy draws ICE for 4s",        18.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
+    { ProgramID::OVERCLOCK,    "OVERCLOCK",  "Halve all cooldowns 6s",        20.f,  ProgramRarity::Rare,     AbilityType::Neural  },
+    { ProgramID::BLACKOUT,     "BLACKOUT",   "Erase all enemy fire",           9.f,  ProgramRarity::Uncommon, AbilityType::Stealth },
+    { ProgramID::BREACH,       "BREACH",     "Piercing beam, full range",     14.f,  ProgramRarity::Rare,     AbilityType::Offense },
+    { ProgramID::TWIN_SHOT,    "TWIN SHOT",  "Double shot for 10s",           12.f,  ProgramRarity::Uncommon, AbilityType::Offense },
+    { ProgramID::BEACON,       "BEACON",     "Auto-turret at drop for 12s",   18.f,  ProgramRarity::Uncommon, AbilityType::Offense },
+    { ProgramID::NOVA_RING,    "NOVA RING",  "8-way burst every 1.5s, 10s",  22.f,  ProgramRarity::Rare,     AbilityType::Offense },
+    { ProgramID::GRAVITY_WELL, "GRAV WELL",  "Pull all ICE to center for 5s", 14.f,  ProgramRarity::Uncommon, AbilityType::Neural  },
+    { ProgramID::NONE,         "------",     "[empty slot]",                   0.f,  ProgramRarity::Common,   AbilityType::Neural  },
 }};
 
 inline const ProgramDef& getProgramDef(ProgramID id) {

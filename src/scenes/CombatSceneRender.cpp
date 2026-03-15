@@ -95,6 +95,50 @@ void CombatScene::render(SceneContext& ctx) {
     if (m_avatar && m_avatar->alive)
         vr->drawGlowPoly(m_avatar->worldVerts(), avatarColor);
 
+    // GRAVITY_WELL — concentric rings contracting toward center
+    if (m_gravTimer > 0.f) {
+        SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
+        float phase = m_gravTimer * 2.5f;
+        Vec2 center = { Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f };
+        for (int ring = 0; ring < 4; ++ring) {
+            float frac = std::fmod(phase + ring * 0.25f, 1.f);
+            float r    = frac * 340.f;
+            uint8_t alpha = (uint8_t)(120 * (1.f - frac));
+            SDL_SetRenderDrawColor(ctx.renderer, 160, 40, 255, alpha);
+            constexpr int SEG = 28;
+            for (int i = 0; i < SEG; ++i) {
+                float a0 = i       * 6.28318f / SEG;
+                float a1 = (i + 1) * 6.28318f / SEG;
+                SDL_RenderDrawLine(ctx.renderer,
+                    (int)(center.x + std::cos(a0) * r), (int)(center.y + std::sin(a0) * r),
+                    (int)(center.x + std::cos(a1) * r), (int)(center.y + std::sin(a1) * r));
+            }
+        }
+    }
+
+    // BEACON — glowing auto-turret diamond at drop position
+    if (m_beaconTimer > 0.f) {
+        float pulse = 0.6f + 0.4f * std::sin(SDL_GetTicks() * 0.007f);
+        float fade  = std::min(m_beaconTimer / 2.f, 1.f);
+        GlowColor bc = { (uint8_t)(255 * pulse * fade),
+                          (uint8_t)(160 * pulse * fade),
+                          (uint8_t)(20  * fade) };
+        float s = 10.f;
+        std::vector<Vec2> diamond = {
+            { m_beaconPos.x,     m_beaconPos.y - s },
+            { m_beaconPos.x + s, m_beaconPos.y     },
+            { m_beaconPos.x,     m_beaconPos.y + s },
+            { m_beaconPos.x - s, m_beaconPos.y     },
+        };
+        vr->drawGlowPoly(diamond, bc);
+        // targeting cross
+        GlowColor crossC = { 255, 200, 60 };
+        vr->drawGlowLine({ m_beaconPos.x - 16.f, m_beaconPos.y },
+                         { m_beaconPos.x + 16.f, m_beaconPos.y }, crossC);
+        vr->drawGlowLine({ m_beaconPos.x, m_beaconPos.y - 16.f },
+                         { m_beaconPos.x, m_beaconPos.y + 16.f }, crossC);
+    }
+
     // CLONE decoy
     if (m_decoyTimer > 0.f && m_avatar) {
         float fade = std::min(m_decoyTimer / 4.f, 1.f);

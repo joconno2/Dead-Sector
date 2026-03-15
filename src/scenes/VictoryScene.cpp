@@ -48,7 +48,19 @@ void VictoryScene::onEnter(SceneContext& ctx) {
         if (m_isFinalWin) {
             ctx.steam->unlockAchievement(ACH_FINAL_BREACH);
             ctx.steam->unlockAchievement(ACH_GOLDEN_HULL);
+
+            // ACH_ALL_GOLDEN: all 5 hulls have a world-3 clear
+            if (ctx.saveData) {
+                static const char* ALL_HULL_IDS[] = { "DELTA","RAPTOR","MANTIS","BATTLE","BLADE" };
+                bool allGolden = true;
+                for (auto id : ALL_HULL_IDS)
+                    if (!ctx.saveData->isGolden(id)) { allGolden = false; break; }
+                if (allGolden) {
+                    ctx.steam->unlockAchievement(ACH_ALL_GOLDEN);
+                }
+            }
         }
+        ctx.steam->checkCompletionist();
     }
 }
 

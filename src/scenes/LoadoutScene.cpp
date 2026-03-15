@@ -1,5 +1,7 @@
 #include "LoadoutScene.hpp"
 #include "SceneContext.hpp"
+#include "core/Mods.hpp"
+#include "steam/SteamManager.hpp"
 #include "SceneManager.hpp"
 #include "systems/ModSystem.hpp"
 #include "core/Constants.hpp"
@@ -162,7 +164,12 @@ void LoadoutScene::confirm(SceneContext& ctx) {
 
 void LoadoutScene::pickStartingMod(SceneContext& ctx) {
     if (m_modCursor >= 0 && m_modCursor < (int)m_modOffered.size()) {
-        if (ctx.mods) ctx.mods->add(m_modOffered[m_modCursor]);
+        ModID picked = m_modOffered[m_modCursor];
+        if (ctx.mods) ctx.mods->add(picked);
+        if (ctx.steam && getModDef(picked).rarity == ModRarity::Legendary) {
+            ctx.steam->unlockAchievement(ACH_LEGENDARY_MOD);
+            ctx.steam->checkCompletionist();
+        }
     }
     launchCombat(ctx);
 }

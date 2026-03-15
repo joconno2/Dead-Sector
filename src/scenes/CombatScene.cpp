@@ -45,7 +45,11 @@ void CombatScene::onEnter(SceneContext& ctx) {
     if (m_audio) {
         int vol = ctx.saveData ? ctx.saveData->musicVolume : 80;
         m_audio->setMusicVolume(vol * SDL_MIX_MAXVOLUME / 100 * 65 / 100);
-        m_audio->playMusic("assets/music/Karl Casey - Fortress.mp3");
+        const char* track =
+            ctx.currentWorld == 2 ? "assets/music/Karl Casey - The System Has Failed.mp3" :
+            ctx.currentWorld == 1 ? "assets/music/Karl Casey - Black Tar.mp3" :
+                                    "assets/music/Karl Casey - Fortress.mp3";
+        m_audio->playMusic(track);
     }
     m_pauseMusicVol = ctx.saveData ? ctx.saveData->musicVolume : 80;
     m_pauseSfxVol   = ctx.saveData ? ctx.saveData->sfxVolume   : 80;
@@ -328,11 +332,20 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_stealthTimer      = 0.f;
     m_overclockTimer    = 0.f;
     m_decoyTimer        = 0.f;
+    m_twinShotTimer     = 0.f;
+    m_beaconTimer       = 0.f;
+    m_beaconFireCd      = 0.f;
+    m_novaTimer         = 0.f;
+    m_novaFireCd        = 0.f;
+    m_gravTimer         = 0.f;
     m_scatterCount      = 0;
     m_surviveTimer      = m_config.surviveSeconds;
     m_lastUpgradeKills  = 0;
-    m_firstKillUnlocked = false;
-    m_highTraceUnlocked = false;
+    m_firstKillUnlocked  = false;
+    m_highTraceUnlocked  = false;
+    m_chainKillTimer     = 0.f;
+    m_chainKillCount     = 0;
+    m_combatStartTicks   = SDL_GetTicks();
     m_bossDeathTimer    = 0.f;
     m_bossPhaseTimer    = 0.f;
     m_shakeTimer        = 0.f;

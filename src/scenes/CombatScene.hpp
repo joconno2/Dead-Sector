@@ -27,6 +27,7 @@ class SteamManager;
 #include "entities/PulseMine.hpp"
 #include "entities/DataPacket.hpp"
 #include "math/Vec2.hpp"
+#include <SDL.h>
 #include <memory>
 #include <vector>
 
@@ -148,6 +149,28 @@ private:
 
     bool m_firstKillUnlocked = false;  // ACH_FIRST_KILL fired this run
     bool m_highTraceUnlocked = false;  // ACH_HIGH_TRACE fired this run
+
+    // Per-node achievement tracking
+    float  m_chainKillTimer       = 0.f;  // rolling 10s window
+    int    m_chainKillCount       = 0;
+    Uint32 m_combatStartTicks     = 0;    // SDL_GetTicks() at resetGame (speedrun timer)
+    bool   m_chainKillUnlocked    = false;
+    bool   m_ricochetKillUnlocked = false;
+    bool   m_stealthKillUnlocked  = false;
+    bool   m_empMultiUnlocked     = false;
+    bool   m_speedrunUnlocked     = false;
+    bool   m_allProgramsUnlocked  = false;
+    bool   m_endlessAch10Unlocked = false;
+    bool   m_endlessAch25Unlocked = false;
+
+    // Program effect timers
+    float m_twinShotTimer  = 0.f;  // TWIN_SHOT: every shot fires a parallel twin
+    float m_beaconTimer    = 0.f;  // BEACON: auto-turret duration
+    Vec2  m_beaconPos      = {};   // where the beacon was dropped
+    float m_beaconFireCd   = 0.f;  // countdown between beacon shots
+    float m_novaTimer      = 0.f;  // NOVA_RING: burst duration
+    float m_novaFireCd     = 0.f;  // countdown between nova bursts
+    float m_gravTimer      = 0.f;  // GRAVITY_WELL: pull duration
 
     // Pause menu
     bool  m_paused       = false;
