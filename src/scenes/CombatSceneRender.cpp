@@ -55,8 +55,30 @@ void CombatScene::render(SceneContext& ctx) {
     }
 
     for (auto& p : m_projectiles) {
-        const auto& v = p->worldVerts();
-        if (v.size() >= 2) vr->drawGlowLine(v[0], v[1], projColor);
+        if (p->radius >= 9.f) {
+            // Iron Coffin heavy round — chunky orange-gold diamond
+            float r = p->radius * 0.75f;
+            GlowColor bigCol = { 255, 160, 30 };
+            std::vector<Vec2> diamond = {
+                { p->pos.x,     p->pos.y - r },
+                { p->pos.x + r, p->pos.y     },
+                { p->pos.x,     p->pos.y + r },
+                { p->pos.x - r, p->pos.y     },
+            };
+            vr->drawGlowPoly(diamond, bigCol);
+            // second inner diamond for visual weight
+            float ri = r * 0.45f;
+            std::vector<Vec2> inner = {
+                { p->pos.x,      p->pos.y - ri },
+                { p->pos.x + ri, p->pos.y      },
+                { p->pos.x,      p->pos.y + ri },
+                { p->pos.x - ri, p->pos.y      },
+            };
+            vr->drawGlowPoly(inner, { 255, 220, 100 });
+        } else {
+            const auto& v = p->worldVerts();
+            if (v.size() >= 2) vr->drawGlowLine(v[0], v[1], projColor);
+        }
     }
 
     renderICE(ctx);
@@ -137,6 +159,31 @@ void CombatScene::render(SceneContext& ctx) {
                          { m_beaconPos.x + 16.f, m_beaconPos.y }, crossC);
         vr->drawGlowLine({ m_beaconPos.x, m_beaconPos.y - 16.f },
                          { m_beaconPos.x, m_beaconPos.y + 16.f }, crossC);
+    }
+
+    // Drones — small glowing triangles orbiting the avatar
+    if (m_avatar && m_avatar->alive && !m_drones.empty()) {
+        constexpr float ORBIT_R = 50.f;
+        for (const auto& d : m_drones) {
+            float fade  = std::min(d.life / 2.f, 1.f);
+            float pulse = 0.6f + 0.4f * std::sin(SDL_GetTicks() * 0.008f + d.orbitAngle);
+            GlowColor dc = { (uint8_t)(255 * fade * pulse),
+                              (uint8_t)(200 * fade * pulse),
+                              (uint8_t)(60  * fade) };
+            float dx = std::cos(d.orbitAngle) * ORBIT_R;
+            float dy = std::sin(d.orbitAngle) * ORBIT_R;
+            Vec2 dp = { m_avatar->pos.x + dx, m_avatar->pos.y + dy };
+            float s  = 8.f;
+            float fa = d.orbitAngle + 1.5708f;  // face tangent direction
+            std::vector<Vec2> tri = {
+                { dp.x + std::cos(fa)         * s,     dp.y + std::sin(fa)         * s     },
+                { dp.x + std::cos(fa + 2.09f) * s,     dp.y + std::sin(fa + 2.09f) * s     },
+                { dp.x + std::cos(fa + 4.19f) * s,     dp.y + std::sin(fa + 4.19f) * s     },
+            };
+            vr->drawGlowPoly(tri, dc);
+            // orbit ring segment hint
+            vr->drawGlowLine(m_avatar->pos, dp, { (uint8_t)(80 * fade), (uint8_t)(60 * fade), 0 });
+        }
     }
 
     // CLONE decoy

@@ -96,7 +96,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
     float rotMult     = hs.rotMult       * (ctx.mods ? ctx.mods->rotMult()       : 1.f);
     float speedCapMult= hs.speedMult     * (ctx.mods ? ctx.mods->maxSpeedMult()  : 1.f);
     float pSpeedMult  = hs.projSpeedMult * (ctx.mods ? ctx.mods->projSpeedMult() : 1.f);
-    float pRadMult    = ctx.mods ? ctx.mods->projRadiusMult(): 1.f;
+    float pRadMult    = (ctx.mods ? ctx.mods->projRadiusMult() : 1.f) * hs.projRadiusMult;
     bool  splitRound  = ctx.mods ? ctx.mods->hasSplitRound()  : false;
     bool  overcharge  = ctx.mods ? ctx.mods->hasOvercharge()   : false;
     bool  scatterCore = ctx.mods ? ctx.mods->hasScatterCore()  : false;
@@ -158,7 +158,8 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                 }
 
                 // TWIN_SHOT: fire a parallel twin projectile offset perpendicular
-                if (m_twinShotTimer > 0.f) {
+                // (active via program timer OR built-in hull trait on RAPTOR)
+                if (m_twinShotTimer > 0.f || hs.builtInTwinShot) {
                     Vec2 h2   = Vec2::fromAngle(m_avatar->angle);
                     Vec2 perp = { -h2.y, h2.x };
                     Vec2 twinPos2 = m_avatar->pos + h2 * 18.f + perp * 14.f;
@@ -275,6 +276,43 @@ void CombatScene::update(float dt, SceneContext& ctx) {
             }
             if (m_audio) m_audio->playShot();
         }
+    }
+
+    // Drones — orbit avatar, fire at nearest ICE every 0.6s, expire after life runs out
+    if (m_avatar && m_avatar->alive && !m_drones.empty()) {
+        constexpr float ORBIT_R    = 50.f;
+        constexpr float ORBIT_SPEED= 2.8f;
+        constexpr float FIRE_CD    = 0.6f;
+        for (auto& d : m_drones) {
+            d.orbitAngle += ORBIT_SPEED * dt;
+            d.life       -= dt;
+            d.fireTimer  -= dt;
+            if (d.fireTimer <= 0.f) {
+                d.fireTimer = FIRE_CD;
+                // find nearest ICE
+                Vec2    dPos  = m_avatar->pos + Vec2{ std::cos(d.orbitAngle) * ORBIT_R,
+                                                       std::sin(d.orbitAngle) * ORBIT_R };
+                Entity* target = nullptr; float best = std::numeric_limits<float>::max();
+                auto chk = [&](Entity* e){ if (!e->alive) return; float dd=(e->pos-dPos).length(); if(dd<best){best=dd;target=e;} };
+                for (auto& h  : m_hunters)    chk(h.get());
+                for (auto& s  : m_sentries)   chk(s.get());
+                for (auto& sp : m_spawnerICE) chk(sp.get());
+                for (auto& ph : m_phantoms)   chk(ph.get());
+                for (auto& lc : m_leeches)    chk(lc.get());
+                for (auto& mi : m_mirrors)    chk(mi.get());
+                if (target) {
+                    Vec2 dir = target->pos - dPos;
+                    float len = dir.length();
+                    if (len > 0.1f) {
+                        dir = dir * (1.f / len);
+                        float a = std::atan2(dir.y, dir.x);
+                        m_projectiles.push_back(std::make_unique<Projectile>(dPos + dir * 10.f, dir * Constants::PROJ_SPEED, a));
+                    }
+                }
+            }
+        }
+        m_drones.erase(std::remove_if(m_drones.begin(), m_drones.end(),
+                        [](const Drone& d){ return d.life <= 0.f; }), m_drones.end());
     }
 
     // Physics
@@ -623,14 +661,10 @@ void CombatScene::activateProgram(int slot, SceneContext& ctx) {
 
     switch (pid) {
     case ProgramID::FRAG: {
-        if (!m_avatar) break;
-        const float offsets[] = { -0.349f, 0.f, 0.349f };
-        for (float off : offsets) {
-            float a      = m_avatar->angle + off;
-            Vec2 heading = Vec2::fromAngle(a);
-            Vec2 pos     = m_avatar->pos + heading * 18.f;
-            m_projectiles.emplace_back(std::make_unique<Projectile>(pos, heading * Constants::PROJ_SPEED, a));
-        }
+        // Deploy 2 attack drones that orbit the avatar and auto-fire at nearest ICE
+        m_drones.clear();  // replace any existing drones
+        m_drones.push_back({ 0.f,             0.f, 8.0f });  // drone 1: starts at 0°
+        m_drones.push_back({ 3.14159f,        0.f, 8.0f });  // drone 2: starts at 180°
         break;
     }
     case ProgramID::EMP:

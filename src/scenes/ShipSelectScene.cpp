@@ -230,7 +230,7 @@ void ShipSelectScene::render(SceneContext& ctx) {
     bool locked   = ctx.saveData && !isUnlocked(m_cursor, *ctx.saveData);
     bool golden   = ctx.saveData && ctx.saveData->isGolden(sel.id);
 
-    int panelW = 560, panelH = 210;
+    int panelW = 660, panelH = 220;
     int panelX = Constants::SCREEN_W / 2 - panelW / 2;
     int panelY = (int)(Constants::SCREEN_HF * 0.62f);
 
@@ -273,12 +273,17 @@ void ShipSelectScene::render(SceneContext& ctx) {
         ctx.hud->drawLabel(("SHOT SPEED: " + pct(sel.projSpeedMult)).c_str(),tx + 210, ty, sel.projSpeedMult>= 1.f ? valCol : statCol);
         ty += 22;
         ctx.hud->drawLabel(("HITBOX:     " + pct(sel.radiusMult)).c_str(),   tx,       ty, sel.radiusMult   <= 1.f ? valCol : statCol);
-        std::string ammoStr = "AMMO:       " + std::to_string(sel.startingAmmo);
-        ctx.hud->drawLabel(ammoStr.c_str(), tx + 210, ty, statCol);
-        ty += 22;
-        if (sel.extraLives > 0) {
-            ctx.hud->drawLabel(("BONUS LIFE: +" + std::to_string(sel.extraLives)).c_str(), tx, ty, valCol);
+        if (sel.scoreMult > 1.01f)
+            ctx.hud->drawLabel(("SCORE:      " + pct(sel.scoreMult)).c_str(), tx + 210, ty, valCol);
+        ty += 28;
+        // Special trait — the thing that actually defines the ship
+        if (sel.specialTrait) {
+            SDL_Color traitCol = golden ? SDL_Color{255, 200, 60, 255} : SDL_Color{0, 220, 180, 255};
+            ctx.hud->drawWrapped(sel.specialTrait, tx, ty, panelW - 32, traitCol, 20);
+            ty += 22;
         }
+        if (sel.extraLives > 0)
+            ctx.hud->drawLabel(("LIVES/NODE: +" + std::to_string(sel.extraLives)).c_str(), tx, ty, valCol);
     }
 
     // Prompt

@@ -126,60 +126,65 @@ HullStats statsForHull(HullType hull) {
     switch (hull) {
     case HullType::Raptor: {
         HullStats s;
-        s.id = "RAPTOR"; s.name = "SIGNAL KNIFE";
-        s.flavor        = "Built for escape. Never meant to fight.";
-        s.thrustMult    = 1.30f;
-        s.speedMult     = 1.40f;
-        s.rotMult       = 1.40f;
-        s.projSpeedMult = 0.85f;
-        s.radiusMult    = 0.90f;
-        s.startingAmmo  = 20;
-        s.runsRequired  = 3;
+        s.id               = "RAPTOR"; s.name = "SIGNAL KNIFE";
+        s.flavor           = "Tiny target. Never where you're looking.";
+        s.specialTrait     = "Always fires twin shots  |  +50% speed  |  -35% hitbox";
+        s.thrustMult       = 1.35f;
+        s.speedMult        = 1.50f;
+        s.rotMult          = 1.50f;
+        s.radiusMult       = 0.65f;
+        s.builtInTwinShot  = true;
+        s.runsRequired     = 3;
         return s;
     }
     case HullType::Mantis: {
         HullStats s;
-        s.id = "MANTIS"; s.name = "STRIKE FRAME";
-        s.flavor        = "Oversized railcannon bolted to a barely-legal hull.";
-        s.thrustMult    = 0.85f;
-        s.speedMult     = 0.85f;
-        s.rotMult       = 0.85f;
-        s.projSpeedMult = 1.50f;
-        s.startingAmmo  = 40;
-        s.killsRequired = 50;
+        s.id           = "MANTIS"; s.name = "STRIKE FRAME";
+        s.flavor       = "Oversized railcannon bolted to a barely-legal hull.";
+        s.specialTrait = "All bullets pierce  |  2x bullet speed  |  slow hull";
+        s.thrustMult   = 0.80f;
+        s.speedMult    = 0.80f;
+        s.rotMult      = 0.75f;
+        s.projSpeedMult= 2.00f;
+        s.autopierce   = true;
+        s.killsRequired= 50;
         return s;
     }
     case HullType::Battle: {
         HullStats s;
-        s.id = "BATTLE"; s.name = "IRON COFFIN";
-        s.flavor        = "Walks slow. Takes everything. Eventually wins.";
-        s.thrustMult    = 0.75f;
-        s.speedMult     = 0.70f;
-        s.rotMult       = 0.75f;
-        s.projSpeedMult = 0.90f;
-        s.radiusMult    = 1.10f;
-        s.startingAmmo  = 50;
-        s.extraLives    = 1;
-        s.killsRequired = 200;
+        s.id             = "BATTLE"; s.name = "IRON COFFIN";
+        s.flavor         = "Walks slow. Takes everything. Eventually wins.";
+        s.specialTrait   = "3 lives per node  |  10px-wide rounds  |  +50% score";
+        s.thrustMult     = 0.65f;
+        s.speedMult      = 0.60f;
+        s.rotMult        = 0.60f;
+        s.projSpeedMult  = 0.85f;
+        s.projRadiusMult = 1.43f;  // 7 * 1.43 ≈ 10px bullet radius
+        s.radiusMult     = 1.15f;
+        s.scoreMult      = 1.50f;
+        s.extraLives     = 3;
+        s.killsRequired  = 200;
         return s;
     }
     case HullType::Blade: {
         HullStats s;
-        s.id = "BLADE"; s.name = "GHOST WIRE";
-        s.flavor        = "Kills in one pass. Counted corpses, never regrets.";
-        s.thrustMult    = 1.50f;
-        s.speedMult     = 1.60f;
-        s.rotMult       = 1.60f;
-        s.projSpeedMult = 1.20f;
-        s.radiusMult    = 0.70f;
-        s.startingAmmo  = 15;
-        s.needsWin      = true;
+        s.id           = "BLADE"; s.name = "GHOST WIRE";
+        s.flavor       = "Stop killing and the trace takes you. Keep killing and nothing can.";
+        s.specialTrait = "Each kill -7% trace  |  +80% speed  |  -45% hitbox";
+        s.thrustMult   = 1.60f;
+        s.speedMult    = 1.80f;
+        s.rotMult      = 1.80f;
+        s.projSpeedMult= 1.20f;
+        s.radiusMult   = 0.55f;
+        s.traceOnKill  = -7.f;
+        s.needsWin     = true;
         return s;
     }
     default: {
         HullStats s;
-        s.id = "DELTA"; s.name = "GHOST RUNNER";
-        s.flavor = "Standard-issue black-market vessel. No surprises.";
+        s.id          = "DELTA"; s.name = "GHOST RUNNER";
+        s.flavor      = "Standard-issue black-market vessel. No surprises.";
+        s.specialTrait= "Balanced stats. No special mechanics. Good for learning.";
         return s;
     }
     }
@@ -248,5 +253,6 @@ Projectile* Avatar::fire(float speedMult, float radiusMult) {
 
     auto* p = new Projectile(spawnPos, projVel, angle);
     p->radius *= radiusMult;
+    if (hullStats.autopierce) p->pierce = true;
     return p;
 }

@@ -135,6 +135,9 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             ev.iceEntity->alive = false;
             m_score += static_cast<int>(ev.iceEntity->scoreValue() * m_scoreMult);
             m_iceKilled++;
+            // GHOST WIRE: each kill drains trace (traceOnKill is negative)
+            if (m_avatar && m_avatar->hullStats.traceOnKill != 0.f)
+                m_trace.add(m_avatar->hullStats.traceOnKill);
             if (!m_firstKillUnlocked) {
                 m_firstKillUnlocked = true;
                 if (m_steam) m_steam->unlockAchievement(ACH_FIRST_KILL);
@@ -385,9 +388,11 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_avatar = std::make_unique<Avatar>(
         Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f, hull);
 
-    // Apply hull-specific base extra lives (mod/shop bonuses added in onEnter)
-    if (m_avatar)
+    // Apply hull-specific base extra lives and score multiplier
+    if (m_avatar) {
         m_avatar->extraLives = m_avatar->hullStats.extraLives;
+        m_scoreMult = m_avatar->hullStats.scoreMult;
+    }
 
     // Generate walls (not for endless — walls are per-node, seeded by nodeId)
     if (!m_config.endless && m_config.nodeId >= 0) {
