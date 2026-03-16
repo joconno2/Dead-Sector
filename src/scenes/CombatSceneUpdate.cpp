@@ -124,8 +124,12 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         }
 
         bool rapidFire = (m_avatar->overdriveTimer > 0.f);
-        bool fireEdge  = m_input.fire && (!m_firePrev || rapidFire);
+        constexpr float FIRE_RATE_NORMAL  = 0.18f;
+        constexpr float FIRE_RATE_RAPID   = 0.07f;
+        if (m_fireCd > 0.f) m_fireCd -= dt;
+        bool fireEdge = m_input.fire && m_fireCd <= 0.f;
         if (fireEdge) {
+            m_fireCd = rapidFire ? FIRE_RATE_RAPID : FIRE_RATE_NORMAL;
             Projectile* p = m_avatar->fire(pSpeedMult, pRadMult);
             if (p) {
                 if (hasRicochetMod) p->noWrap = true;

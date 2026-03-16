@@ -91,6 +91,7 @@ private:
     float m_surviveTimer     = 0.f;
     bool  m_complete         = false;
     bool  m_firePrev         = false;
+    float m_fireCd           = 0.f;   // cooldown between auto-fire shots
     int   m_shotCount        = 0;
     int   m_lastUpgradeKills = 0;
 

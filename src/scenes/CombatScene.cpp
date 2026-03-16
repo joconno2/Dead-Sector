@@ -331,6 +331,7 @@ void CombatScene::resetGame(SceneContext& ctx) {
     m_packetsCollected  = 0;
     m_complete          = false;
     m_firePrev          = false;
+    m_fireCd            = 0.f;
     m_prog0Prev = m_prog1Prev = m_prog2Prev = false;
     m_empTimer          = 0.f;
     m_stealthTimer      = 0.f;
