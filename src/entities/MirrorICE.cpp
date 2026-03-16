@@ -18,8 +18,9 @@ MirrorICE::MirrorICE(Vec2 pos_, Vec2 initialVel) {
     transformVerts();
 }
 
-void MirrorICE::update(float /*dt*/) {
+void MirrorICE::update(float dt) {
     // Angle set externally by AISystem each frame (tracks player).
     // Body doesn't spin — it holds the facing angle.
     angle = facingAngle;
+    if (hitFlashTimer > 0.f) hitFlashTimer -= dt;
 }

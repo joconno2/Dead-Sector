@@ -9,6 +9,7 @@
 #include "world/NodeMap.hpp"
 #include "systems/ModSystem.hpp"
 #include "systems/ProgramSystem.hpp"
+#include "entities/Avatar.hpp"
 
 #include <SDL.h>
 #include <cmath>
@@ -22,9 +23,10 @@ RunSummaryScene::RunSummaryScene(int score, int iceKilled, int nodesCleared, boo
 {}
 
 void RunSummaryScene::onEnter(SceneContext& ctx) {
-    m_time        = 0.f;
-    m_canExit     = false;
-    m_isNewRecord = false;
+    m_time           = 0.f;
+    m_canExit        = false;
+    m_isNewRecord    = false;
+    m_newHullUnlocks.clear();
 
     // Commit run stats to save data
     if (ctx.saveData) {
@@ -39,6 +41,26 @@ void RunSummaryScene::onEnter(SceneContext& ctx) {
         if (m_score > ctx.saveData->highScore)
             ctx.saveData->highScore = m_score;
         ctx.saveData->submitScore(ctx.endlessMode, m_score, ctx.endlessWave);
+
+        // Check hull unlock conditions
+        static constexpr HullType HULL_ORDER[] = {
+            HullType::Delta, HullType::Raptor, HullType::Mantis, HullType::Blade, HullType::Battle
+        };
+        for (HullType ht : HULL_ORDER) {
+            HullStats s = statsForHull(ht);
+            if (s.id == std::string("DELTA")) continue; // starter always available
+            std::string purchaseId = std::string("HULL_") + s.id;
+            if (ctx.saveData->hasPurchase(purchaseId)) continue; // already unlocked
+            bool earned = false;
+            if (s.runsRequired  > 0 && ctx.saveData->totalRuns  >= s.runsRequired)  earned = true;
+            if (s.killsRequired > 0 && ctx.saveData->totalKills >= s.killsRequired) earned = true;
+            if (s.needsWin && m_victory) earned = true;
+            if (earned) {
+                ctx.saveData->purchases.push_back(purchaseId);
+                m_newHullUnlocks.push_back(s.name);
+            }
+        }
+
         SaveSystem::save(*ctx.saveData);
 
         m_isNewRecord = (m_score > 0 && m_score > prevBest);
@@ -184,6 +206,15 @@ void RunSummaryScene::render(SceneContext& ctx) {
     rowY += 30;
 
     // Prompt
+    // Hull unlock notifications
+    for (const auto& hullName : m_newHullUnlocks) {
+        float p = 0.5f + 0.5f * std::sin(m_time * 4.f);
+        SDL_Color unlockCol = { (uint8_t)(80 + 80 * p), (uint8_t)(200 + 55 * p), (uint8_t)(120 + 60 * p), 255 };
+        std::string msg = ">> HULL UNLOCKED: " + hullName + " <<";
+        ctx.hud->drawLabel(msg, panelX + 20, rowY, unlockCol);
+        rowY += 22;
+    }
+
     if (m_canExit) {
         float blink = 0.5f + 0.5f * std::sin(m_time * 3.f);
         SDL_Color promptCol = { 0, (uint8_t)(160 + 60 * blink), (uint8_t)(140 + 40 * blink), 220 };

@@ -6,8 +6,6 @@
 #include "core/Constants.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
-#include "entities/Avatar.hpp"
-
 #include <SDL.h>
 #include <cmath>
 #include <string>
@@ -15,10 +13,8 @@
 #include <vector>
 
 // ---------------------------------------------------------------------------
-// Shop catalog — upgrades + hull skins
+// Shop catalog — upgrades only (hulls are unlocked via gameplay)
 // ---------------------------------------------------------------------------
-
-enum class ItemKind { Upgrade, Hull };
 
 struct ShopItem {
     const char* id;
@@ -26,37 +22,22 @@ struct ShopItem {
     const char* desc;
     int         cost;
     int         maxPurchases;
-    ItemKind    kind;
 };
 
 static const ShopItem SHOP_CATALOG[] = {
     // ----- Permanent upgrades -----
-    {"EXTRA_LIFE",    "MILITARY CHASSIS",   "Start each run with +1 extra life",      800, 3, ItemKind::Upgrade},
-    {"EXTRA_OFFER",   "NEURAL BUFFER",      "+1 upgrade card offered per pick",       1200, 2, ItemKind::Upgrade},
-    {"TRACE_SLOW",    "TRACE DAMPENER",     "Trace ticks 10% slower permanently",     600, 3, ItemKind::Upgrade},
-    {"START_PROGRAM", "PROGRAM INJECTOR",   "Start each run with 1 random program",   1000, 1, ItemKind::Upgrade},
-    {"SCORE_BOOST",   "DATA SIPHON",        "All score gains +20%",                   900, 3, ItemKind::Upgrade},
-    {"EXTRA_PASSIVE", "NEURAL HARDWIRE",    "Passive mod slot limit +1 (max 5)",      2000, 2, ItemKind::Upgrade},
-    {"COOL_EXEC",     "CLOCK CRYSTAL",      "All program cooldowns -10% permanently", 500, 4, ItemKind::Upgrade},
-    {"REVEAL_MAP",    "SHADOW SCANNER",     "Reveals all node names and types on map (still must unlock normally)", 1500, 1, ItemKind::Upgrade},
+    {"EXTRA_LIFE",    "MILITARY CHASSIS",   "Start each run with +1 extra life",      800, 3},
+    {"EXTRA_OFFER",   "NEURAL BUFFER",      "+1 upgrade card offered per pick",       1200, 2},
+    {"TRACE_SLOW",    "TRACE DAMPENER",     "Trace ticks 10% slower permanently",     600, 3},
+    {"START_PROGRAM", "PROGRAM INJECTOR",   "Start each run with 1 random program",   1000, 1},
+    {"SCORE_BOOST",   "DATA SIPHON",        "All score gains +20%",                   900, 3},
+    {"EXTRA_PASSIVE", "NEURAL HARDWIRE",    "Passive mod slot limit +1 (max 5)",      2000, 2},
+    {"COOL_EXEC",     "CLOCK CRYSTAL",      "All program cooldowns -10% permanently", 500, 4},
+    {"REVEAL_MAP",    "SHADOW SCANNER",     "Reveals all node names and types on map (still must unlock normally)", 1500, 1},
     // ----- Legendary -----
-    {"DEADBOLT",      "DEADBOLT PROTOCOL",  "Your own bullets can never harm you. Friendly fire immunity, permanently.", 8000, 1, ItemKind::Upgrade},
-    // ----- Hull skins (cosmetic) -----
-    {"HULL_RAPTOR",   "SIGNAL KNIFE",       "Swept-wing interceptor. Fast. Fragile.",  600, 1, ItemKind::Hull},
-    {"HULL_MANTIS",   "STRIKE FRAME",       "Forward-claw gunship. Hits hard.",        600, 1, ItemKind::Hull},
-    {"HULL_BLADE",    "GHOST WIRE",         "Knife silhouette. Kills in one pass.",    600, 1, ItemKind::Hull},
-    {"HULL_BATTLE",   "IRON COFFIN",        "Heavy armored delta. Slow. Survives.",    600, 1, ItemKind::Hull},
+    {"DEADBOLT",      "DEADBOLT PROTOCOL",  "Your own bullets can never harm you. Friendly fire immunity, permanently.", 8000, 1},
 };
 static constexpr int CATALOG_SIZE = (int)(sizeof(SHOP_CATALOG) / sizeof(SHOP_CATALOG[0]));
-
-// Map hull item id → activeHull string
-static const char* hullIdToActive(const char* id) {
-    if (id == std::string("HULL_RAPTOR"))  return "RAPTOR";
-    if (id == std::string("HULL_MANTIS"))  return "MANTIS";
-    if (id == std::string("HULL_BLADE"))   return "BLADE";
-    if (id == std::string("HULL_BATTLE"))  return "BATTLE";
-    return "DELTA";
-}
 
 // ---------------------------------------------------------------------------
 // Vector icons — drawn procedurally per item
@@ -72,28 +53,11 @@ static void drawCircle(SDL_Renderer* r, int cx, int cy, int rad, int segs = 16) 
     }
 }
 
-static void drawShopIcon(SDL_Renderer* r, const char* id, ItemKind kind, int cx, int cy, int sz) {
+static void drawShopIcon(SDL_Renderer* r, const char* id, int cx, int cy, int sz) {
     int h = sz / 2;
     const float PI = 3.14159f;
 
-    if (kind == ItemKind::Hull) {
-        // Use the real in-game hull geometry (same function as Avatar + ShipSelectScene)
-        HullType ht = HullType::Delta;
-        if      (id == std::string("HULL_RAPTOR")) ht = HullType::Raptor;
-        else if (id == std::string("HULL_MANTIS")) ht = HullType::Mantis;
-        else if (id == std::string("HULL_BLADE"))  ht = HullType::Blade;
-        else if (id == std::string("HULL_BATTLE")) ht = HullType::Battle;
-
-        auto verts = hullVerts(ht);
-        // Natural bounding box spans ~80 units in Y — scale to fit sz
-        float scale = sz / 80.f;
-        std::vector<SDL_Point> pts;
-        pts.reserve(verts.size() + 1);
-        for (auto& v : verts)
-            pts.push_back({cx + (int)(v.x * scale), cy + (int)(v.y * scale)});
-        pts.push_back(pts.front()); // close polygon
-        SDL_RenderDrawLines(r, pts.data(), (int)pts.size());
-    } else {
+    {
         if (id == std::string("EXTRA_LIFE")) {
             // Shield: pentagon
             int px[5], py[5];
@@ -187,6 +151,7 @@ static void drawShopIcon(SDL_Renderer* r, const char* id, ItemKind kind, int cx,
     }
 }
 
+
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
@@ -236,13 +201,6 @@ void ShopScene::tryBuy(SceneContext& ctx) {
     int             owned = ctx.saveData->purchaseCount(item.id);
 
     if (owned >= item.maxPurchases) {
-        // For hulls, if already owned, just equip it
-        if (item.kind == ItemKind::Hull && owned > 0) {
-            ctx.saveData->activeHull = hullIdToActive(item.id);
-            SaveSystem::save(*ctx.saveData);
-            m_statusMsg = std::string(item.name) + " EQUIPPED"; m_statusTimer = 2.f;
-            return;
-        }
         m_statusMsg = "MAX PURCHASES REACHED"; m_statusTimer = 2.f; return;
     }
     if (ctx.saveData->credits < item.cost) {
@@ -251,12 +209,8 @@ void ShopScene::tryBuy(SceneContext& ctx) {
 
     ctx.saveData->credits -= item.cost;
     ctx.saveData->purchases.push_back(item.id);
-
-    if (item.kind == ItemKind::Hull)
-        ctx.saveData->activeHull = hullIdToActive(item.id);
-
     SaveSystem::save(*ctx.saveData);
-    m_statusMsg = std::string(item.name) + (item.kind == ItemKind::Hull ? " EQUIPPED" : " ACQUIRED");
+    m_statusMsg = std::string(item.name) + " ACQUIRED";
     m_statusTimer = 2.f;
 }
 
@@ -297,9 +251,6 @@ void ShopScene::render(SceneContext& ctx) {
         std::string credStr = "CREDITS: " + std::to_string(ctx.saveData->credits) + " CR";
         int cw = ctx.hud->measureText(credStr);
         ctx.hud->drawLabel(credStr, Constants::SCREEN_W - cw - 20, 14, {0, 220, 160, 255});
-
-        std::string hullStr = "HULL: " + ctx.saveData->activeHull;
-        ctx.hud->drawLabel(hullStr, 20, 14, {80, 160, 220, 200});
     }
 
     // ---- Layout constants ----
@@ -329,10 +280,6 @@ void ShopScene::render(SceneContext& ctx) {
             listY += 6;
             ctx.hud->drawLabel("// LEGENDARY", LIST_X, listY, {200, 160, 20, 200});
             listY += 26;
-        } else if (i == 9) {
-            listY += 6;
-            ctx.hud->drawLabel("// SHIP HULLS", LIST_X, listY, {80, 120, 180, 160});
-            listY += 26;
         }
 
         const ShopItem& item = SHOP_CATALOG[i];
@@ -341,8 +288,6 @@ void ShopScene::render(SceneContext& ctx) {
         int owned   = ctx.saveData ? ctx.saveData->purchaseCount(item.id) : 0;
         bool maxed  = (owned >= item.maxPurchases);
         bool afford = ctx.saveData && ctx.saveData->credits >= item.cost;
-        bool hullActive = (item.kind == ItemKind::Hull && ctx.saveData &&
-                           ctx.saveData->activeHull == hullIdToActive(item.id));
 
         // Row background
         SDL_Rect row = {LIST_X, listY, LIST_W, ITEM_H - 2};
@@ -359,49 +304,30 @@ void ShopScene::render(SceneContext& ctx) {
             SDL_RenderDrawRect(r, &row);
         }
 
-        if (hullActive) {
-            SDL_SetRenderDrawColor(r, 0, 200, 160, 40);
-            SDL_Rect act = {LIST_X+2, listY+2, LIST_W-4, ITEM_H-6};
-            SDL_RenderFillRect(r, &act);
-        }
-
         // Small icon
         int iconCX = LIST_X + 4 + ICON_SZ / 2;
         int iconCY = listY + ITEM_H / 2 - 1;
-        uint8_t ir = item.kind == ItemKind::Hull ? 60  : 0;
-        uint8_t ig = item.kind == ItemKind::Hull ? 120 : (sel ? 220 : 180);
-        uint8_t ib = item.kind == ItemKind::Hull ? 220 : (sel ? 200 : 140);
-        SDL_SetRenderDrawColor(r, ir, ig, ib, sel ? 230 : 150);
-        drawShopIcon(r, item.id, item.kind, iconCX, iconCY, ICON_SZ);
+        SDL_SetRenderDrawColor(r, 0, sel ? 220 : 180, sel ? 200 : 140, sel ? 230 : 150);
+        drawShopIcon(r, item.id, iconCX, iconCY, ICON_SZ);
 
         // Name
         SDL_Color nameCol;
-        if      (maxed && item.kind != ItemKind::Hull) nameCol = {70, 110, 80, 180};
-        else if (sel)                                   nameCol = {220, 240, 220, 255};
-        else if (!afford && !maxed)                     nameCol = {160, 120, 80, 200};
-        else                                            nameCol = {180, 200, 190, 210};
+        if      (maxed)           nameCol = {70, 110, 80, 180};
+        else if (sel)             nameCol = {220, 240, 220, 255};
+        else if (!afford)         nameCol = {160, 120, 80, 200};
+        else                      nameCol = {180, 200, 190, 210};
+        ctx.hud->drawLabel(item.name, LIST_X + ICON_SZ + 12, listY + 4, nameCol);
 
-        std::string nameStr = item.name;
-        if (hullActive) nameStr += " [EQ]";
-        ctx.hud->drawLabel(nameStr, LIST_X + ICON_SZ + 12, listY + 4, nameCol);
-
-        // Kind label sub-line
-        SDL_Color kindCol = item.kind == ItemKind::Hull
-            ? SDL_Color{60, 100, 160, 150} : SDL_Color{40, 120, 90, 150};
-        std::string kindStr = item.kind == ItemKind::Hull ? "Hull Skin" : "Upgrade";
-        if (item.maxPurchases > 1) {
+        // Upgrade sub-line
+        std::string kindStr = "Upgrade";
+        if (item.maxPurchases > 1)
             kindStr += "  " + std::to_string(owned) + "/" + std::to_string(item.maxPurchases);
-        }
-        ctx.hud->drawLabel(kindStr, LIST_X + ICON_SZ + 12, listY + 24, kindCol);
+        ctx.hud->drawLabel(kindStr, LIST_X + ICON_SZ + 12, listY + 24, {40, 120, 90, 150});
 
         // Cost — right-aligned
-        std::string costStr;
-        if (item.kind == ItemKind::Hull && owned > 0)    costStr = "OWNED";
-        else if (maxed)                                   costStr = "MAXED";
-        else                                              costStr = std::to_string(item.cost) + "CR";
-        SDL_Color costCol = (maxed && item.kind != ItemKind::Hull)
-            ? SDL_Color{50, 100, 60, 150}
-            : (afford ? SDL_Color{0, 210, 160, 220} : SDL_Color{210, 80, 50, 200});
+        std::string costStr = maxed ? "MAXED" : std::to_string(item.cost) + "CR";
+        SDL_Color costCol = maxed ? SDL_Color{50, 100, 60, 150}
+                                  : (afford ? SDL_Color{0, 210, 160, 220} : SDL_Color{210, 80, 50, 200});
         int cw2 = ctx.hud->measureText(costStr);
         ctx.hud->drawLabel(costStr, LIST_X + LIST_W - cw2 - 8, listY + 4, costCol);
 
@@ -413,8 +339,6 @@ void ShopScene::render(SceneContext& ctx) {
     int owned_sel   = ctx.saveData ? ctx.saveData->purchaseCount(sel.id) : 0;
     bool maxed_sel  = (owned_sel >= sel.maxPurchases);
     bool afford_sel = ctx.saveData && ctx.saveData->credits >= sel.cost;
-    bool hullActive_sel = (sel.kind == ItemKind::Hull && ctx.saveData &&
-                           ctx.saveData->activeHull == hullIdToActive(sel.id));
     float pulse_sel = 0.5f + 0.5f * std::sin(m_pulse);
 
     // Panel background
@@ -428,11 +352,8 @@ void ShopScene::render(SceneContext& ctx) {
     constexpr int LARGE_ICON = 80;
     int iconCX = DETAIL_X + DETAIL_W / 2;
     int iconCY = PANEL_Y + LARGE_ICON / 2 + 24;
-    uint8_t lr = sel.kind == ItemKind::Hull ? 60  : 0;
-    uint8_t lg = sel.kind == ItemKind::Hull ? (uint8_t)(130 + (int)(40*pulse_sel)) : (uint8_t)(200 + (int)(20*pulse_sel));
-    uint8_t lb = sel.kind == ItemKind::Hull ? 220 : (uint8_t)(170 + (int)(30*pulse_sel));
-    SDL_SetRenderDrawColor(r, lr, lg, lb, 220);
-    drawShopIcon(r, sel.id, sel.kind, iconCX, iconCY, LARGE_ICON);
+    SDL_SetRenderDrawColor(r, 0, (uint8_t)(200 + (int)(20*pulse_sel)), (uint8_t)(170 + (int)(30*pulse_sel)), 220);
+    drawShopIcon(r, sel.id, iconCX, iconCY, LARGE_ICON);
 
     int detY = PANEL_Y + LARGE_ICON + 40;
 
@@ -444,9 +365,7 @@ void ShopScene::render(SceneContext& ctx) {
     // Category badge
     std::string badge;
     SDL_Color   badgeCol;
-    if (sel.kind == ItemKind::Hull) {
-        badge = "[ HULL SKIN ]"; badgeCol = {80, 140, 220, 200};
-    } else if (std::string(sel.id) == "DEADBOLT") {
+    if (std::string(sel.id) == "DEADBOLT") {
         badge = "[ LEGENDARY ]"; badgeCol = {220, 180, 20, 230};
     } else {
         badge = "[ PERMANENT UPGRADE ]"; badgeCol = {0, 200, 160, 200};
@@ -473,10 +392,7 @@ void ShopScene::render(SceneContext& ctx) {
     // Cost / status
     std::string costDisp;
     SDL_Color   costDispCol;
-    if (sel.kind == ItemKind::Hull && owned_sel > 0) {
-        costDisp    = hullActive_sel ? "// ACTIVE //" : "OWNED";
-        costDispCol = {0, 220, 180, 255};
-    } else if (maxed_sel) {
+    if (maxed_sel) {
         costDisp    = "// MAXED //";
         costDispCol = {80, 140, 90, 200};
     } else {
@@ -495,20 +411,10 @@ void ShopScene::render(SceneContext& ctx) {
         detY += 28;
     }
 
-    // Buy / equip hint
-    if (!maxed_sel || (sel.kind == ItemKind::Hull && owned_sel > 0)) {
-        std::string hint;
-        SDL_Color   hintCol;
-        if (sel.kind == ItemKind::Hull && owned_sel > 0) {
-            hint    = "[ ENTER ] to equip";
-            hintCol = {0, 180, 140, 200};
-        } else if (afford_sel) {
-            hint    = "[ ENTER ] to purchase";
-            hintCol = {0, 180, 140, 200};
-        } else {
-            hint    = "// INSUFFICIENT CREDITS //";
-            hintCol = {180, 60, 40, 180};
-        }
+    // Buy hint
+    if (!maxed_sel) {
+        std::string hint    = afford_sel ? "[ ENTER ] to purchase" : "// INSUFFICIENT CREDITS //";
+        SDL_Color   hintCol = afford_sel ? SDL_Color{0, 180, 140, 200} : SDL_Color{180, 60, 40, 180};
         int hw = ctx.hud->measureText(hint);
         ctx.hud->drawLabel(hint, DETAIL_X + DETAIL_W/2 - hw/2, detY, hintCol);
     }
@@ -524,7 +430,7 @@ void ShopScene::render(SceneContext& ctx) {
     }
 
     // Footer
-    std::string footer = "UP/DOWN: Navigate    ENTER: Buy/Equip    ESC/B: Back";
+    std::string footer = "UP/DOWN: Navigate    ENTER: Buy    ESC/B: Back";
     int fw = ctx.hud->measureText(footer);
     ctx.hud->drawLabel(footer,
                        Constants::SCREEN_W / 2 - fw / 2,

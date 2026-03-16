@@ -65,8 +65,8 @@ namespace Constants {
 
     // Trace system
     constexpr float TRACE_TICK_RATE   = 1.5f;   // %/sec baseline tick rate
-    constexpr float TRACE_HIT_PENALTY = 4.0f;   // % added when avatar is hit
-    constexpr float TRACE_ALARM_ADD   = 7.5f;   // % added on sentry alarm
+    constexpr float TRACE_HIT_PENALTY = 2.5f;   // % added when avatar is hit
+    constexpr float TRACE_ALARM_ADD   = 4.5f;   // % added on sentry alarm
     constexpr float TRACE_THRESH_1    = 25.0f;
     constexpr float TRACE_THRESH_2    = 50.0f;
     constexpr float TRACE_THRESH_3    = 75.0f;

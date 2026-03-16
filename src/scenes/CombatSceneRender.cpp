@@ -341,13 +341,26 @@ void CombatScene::renderICE(SceneContext& ctx) const {
     }
     for (auto& mi : m_mirrors) {
         if (!mi->alive) continue;
-        GlowColor mirrorCol = { 200, 230, 255 };
+        bool flashing = mi->hitFlashTimer > 0.f;
+        // Flash orange-red on hit, scale brightness with remaining HP
+        float hpFrac = mi->hp / 3.f;
+        uint8_t rb = flashing ? 255 : (uint8_t)(160 + 40 * hpFrac);
+        uint8_t gb = flashing ? 120 : (uint8_t)(200 + 30 * hpFrac);
+        uint8_t bb = flashing ?  60 : 255;
+        GlowColor mirrorCol = { rb, gb, bb };
         vr->drawGlowPoly(mi->worldVerts(), mirrorCol);
+        // HP tick marks on face line
         Vec2 perp = { -std::sin(mi->facingAngle), std::cos(mi->facingAngle) };
         Vec2 faceA = mi->pos + perp * (mi->radius * 0.85f);
         Vec2 faceB = mi->pos - perp * (mi->radius * 0.85f);
-        GlowColor faceCol = { 255, 255, 255 };
+        GlowColor faceCol = flashing ? GlowColor{255, 120, 30} : GlowColor{255, 255, 255};
         vr->drawGlowLine(faceA, faceB, faceCol);
+        // HP pips — one dot per remaining HP above base
+        for (int h = 0; h < mi->hp - 1; ++h) {
+            float t = (h + 0.5f) / 3.f - 0.25f;
+            Vec2 pip = mi->pos + perp * (mi->radius * t);
+            vr->drawGlowLine(pip + Vec2{-2.f, -2.f}, pip + Vec2{2.f, 2.f}, {255, 220, 80});
+        }
     }
     for (auto& ep : m_enemyProjectiles) {
         const auto& v = ep->worldVerts();

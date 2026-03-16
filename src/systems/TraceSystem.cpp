@@ -2,7 +2,7 @@
 #include "core/Constants.hpp"
 #include <algorithm>
 
-static constexpr int THRESHOLDS[] = { 25, 50, 75, 100 };
+static constexpr int THRESHOLDS[] = { 20, 40, 60, 80, 100 };
 
 TraceSystem::TraceSystem(float tickRate)
     : m_tickRate(tickRate)

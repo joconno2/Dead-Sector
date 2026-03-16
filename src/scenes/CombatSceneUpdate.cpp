@@ -463,32 +463,22 @@ void CombatScene::update(float dt, SceneContext& ctx) {
 
     if (m_config.objective == NodeObjective::Survive) m_surviveTimer -= dt;
 
-    // Mirror ICE — reflect front-hit projectiles, take damage from rear hits
+    // Mirror ICE — destructible armor, takes 3 hits from any direction
     for (auto& mi : m_mirrors) {
         if (!mi->alive) continue;
         for (auto& p : m_projectiles) {
             if (!p->alive) continue;
             float dist = (p->pos - mi->pos).length();
             if (dist >= mi->radius + p->radius) continue;
-            Vec2 faceDir = { std::cos(mi->facingAngle), std::sin(mi->facingAngle) };
-            Vec2 toProj  = (p->pos - mi->pos).normalized();
-            float dot    = faceDir.x * toProj.x + faceDir.y * toProj.y;
-            if (dot > 0.f) {
-                Vec2 norm   = faceDir;
-                float vDot  = p->vel.x * norm.x + p->vel.y * norm.y;
-                Vec2 reflVel = { p->vel.x - 2.f * vDot * norm.x,
-                                 p->vel.y - 2.f * vDot * norm.y };
-                p->alive = false;
-                auto ep = std::make_unique<EnemyProjectile>(p->pos, reflVel);
-                ep->lifetime = 2.0f;
-                m_enemyProjectiles.push_back(std::move(ep));
-                m_fragments.emit(p->pos, 200, 230, 255, 4, 8.f, 160.f);
-            } else {
-                p->alive  = false;
+            if (!p->pierce) p->alive = false;
+            mi->hp--;
+            mi->hitFlashTimer = 0.12f;
+            m_fragments.emit(p->pos, 220, 240, 255, 4, 8.f, 160.f);
+            if (mi->hp <= 0) {
                 mi->alive = false;
                 m_score += static_cast<int>(mi->scoreValue() * m_scoreMult);
                 m_iceKilled++;
-                m_fragments.emit(mi->pos, 180, 220, 255, 8, 10.f, 200.f);
+                m_fragments.emit(mi->pos, 180, 220, 255, 12, 14.f, 280.f);
             }
         }
     }

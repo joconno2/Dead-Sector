@@ -19,7 +19,8 @@ private:
     int  m_nodesCleared;
     bool m_victory;
 
-    float m_time        = 0.f;
-    bool  m_canExit     = false;
-    bool  m_isNewRecord = false;
+    float                    m_time           = 0.f;
+    bool                     m_canExit        = false;
+    bool                     m_isNewRecord    = false;
+    std::vector<std::string> m_newHullUnlocks;
 };

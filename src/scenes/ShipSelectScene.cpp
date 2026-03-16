@@ -260,11 +260,44 @@ void ShipSelectScene::render(SceneContext& ctx) {
     };
 
     if (locked) {
-        // Show unlock requirement
         SDL_Color reqCol  = { 180, 60, 60, 220 };
-        SDL_Color shopCol = { 80, 160, 220, 220 };
+        SDL_Color progCol = { 80, 160, 220, 220 };
         ctx.hud->drawLabel("[ LOCKED ]", tx, ty, reqCol); ty += 22;
-        ctx.hud->drawLabel("Purchase this hull in the SHOP to unlock.", tx, ty, shopCol); ty += 20;
+
+        // Show specific unlock condition with current progress
+        if (sel.needsWin) {
+            ctx.hud->drawLabel("Beat the game to unlock.", tx, ty, progCol);
+        } else if (sel.killsRequired > 0) {
+            int have = ctx.saveData ? ctx.saveData->totalKills : 0;
+            std::string msg = "Total kills: " + std::to_string(have)
+                            + " / " + std::to_string(sel.killsRequired);
+            ctx.hud->drawLabel(msg.c_str(), tx, ty, progCol); ty += 20;
+            // Progress bar
+            float frac = std::min(1.f, (float)have / sel.killsRequired);
+            int barW = panelW - 32;
+            int barH = 6;
+            SDL_SetRenderDrawColor(r, 30, 50, 60, 180);
+            SDL_Rect barBg = { tx, ty, barW, barH };
+            SDL_RenderFillRect(r, &barBg);
+            SDL_SetRenderDrawColor(r, 60, 140, 200, 220);
+            SDL_Rect barFill = { tx, ty, (int)(barW * frac), barH };
+            SDL_RenderFillRect(r, &barFill);
+        } else if (sel.runsRequired > 0) {
+            int have = ctx.saveData ? ctx.saveData->totalRuns : 0;
+            std::string msg = "Total runs: " + std::to_string(have)
+                            + " / " + std::to_string(sel.runsRequired);
+            ctx.hud->drawLabel(msg.c_str(), tx, ty, progCol); ty += 20;
+            // Progress bar
+            float frac = std::min(1.f, (float)have / sel.runsRequired);
+            int barW = panelW - 32;
+            int barH = 6;
+            SDL_SetRenderDrawColor(r, 30, 50, 60, 180);
+            SDL_Rect barBg = { tx, ty, barW, barH };
+            SDL_RenderFillRect(r, &barBg);
+            SDL_SetRenderDrawColor(r, 60, 140, 200, 220);
+            SDL_Rect barFill = { tx, ty, (int)(barW * frac), barH };
+            SDL_RenderFillRect(r, &barFill);
+        }
     } else {
         ctx.hud->drawLabel(("SPEED:      " + pct(sel.speedMult)).c_str(),    tx,       ty, sel.speedMult    >= 1.f ? valCol : statCol);
         ctx.hud->drawLabel(("THRUST:     " + pct(sel.thrustMult)).c_str(),   tx + 210, ty, sel.thrustMult   >= 1.f ? valCol : statCol);
@@ -272,9 +305,8 @@ void ShipSelectScene::render(SceneContext& ctx) {
         ctx.hud->drawLabel(("ROTATION:   " + pct(sel.rotMult)).c_str(),      tx,       ty, sel.rotMult      >= 1.f ? valCol : statCol);
         ctx.hud->drawLabel(("SHOT SPEED: " + pct(sel.projSpeedMult)).c_str(),tx + 210, ty, sel.projSpeedMult>= 1.f ? valCol : statCol);
         ty += 22;
-        ctx.hud->drawLabel(("HITBOX:     " + pct(sel.radiusMult)).c_str(),   tx,       ty, sel.radiusMult   <= 1.f ? valCol : statCol);
         if (sel.scoreMult > 1.01f)
-            ctx.hud->drawLabel(("SCORE:      " + pct(sel.scoreMult)).c_str(), tx + 210, ty, valCol);
+            ctx.hud->drawLabel(("SCORE:      " + pct(sel.scoreMult)).c_str(), tx, ty, valCol);
         ty += 28;
         // Special trait — the thing that actually defines the ship
         if (sel.specialTrait) {

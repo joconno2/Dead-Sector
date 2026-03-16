@@ -84,8 +84,8 @@ void CombatScene::onEnter(SceneContext& ctx) {
         m_thresholdFlash    = 1.f;
         m_thresholdFlashPct = pct;
         if (m_controller) {
-            Uint16 lo = (Uint16)(0x1500 * (pct / 25));
-            SDL_GameControllerRumble(m_controller, lo, lo / 2, 150u + (Uint32)(pct / 25) * 50u);
+            Uint16 lo = (Uint16)(0x1500 * (pct / 20));
+            SDL_GameControllerRumble(m_controller, lo, lo / 2, 150u + (Uint32)(pct / 20) * 50u);
         }
         if (pct >= 100 && !m_highTraceUnlocked) {
             m_highTraceUnlocked = true;
@@ -120,9 +120,10 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
         if (ev.type == CollisionEvent::Type::ProjectileHitICE) {
             if (!ev.projectile->alive || !ev.iceEntity->alive) return;
 
-            bool pierce = ev.projectile->pierce;  // BREACH program
+            bool pierce        = ev.projectile->pierce;  // MANTIS hull / BREACH program
+            bool phantomPierce = false;
             if (!pierce && mods) {
-                if (mods->hasPhantomRound()) pierce = true;
+                if (mods->hasPhantomRound()) { pierce = true; phantomPierce = true; }
                 else if (mods->hasCritMatrix()) {
                     static thread_local std::mt19937 rng(std::random_device{}());
                     std::uniform_real_distribution<float> d(0.f, 1.f);
@@ -170,7 +171,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
                 }
             }
 
-            if (mods && mods->hasChainFire()) {
+            if (mods && mods->hasChainFire() && !phantomPierce) {
                 Entity* nearest = nullptr; float best = std::numeric_limits<float>::max();
                 auto checkNearest = [&](auto& vec) {
                     for (auto& e : vec)
