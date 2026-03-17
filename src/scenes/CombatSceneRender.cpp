@@ -20,7 +20,9 @@ void CombatScene::render(SceneContext& ctx) {
         float mag = 14.f * (m_shakeTimer / m_shakeDuration);
         static thread_local std::mt19937 srng(12345u);
         std::uniform_int_distribution<int> sd(-(int)mag, (int)mag);
-        SDL_Rect vp = { sd(srng), sd(srng), Constants::SCREEN_W, Constants::SCREEN_H };
+        int rw, rh;
+        SDL_GetRendererOutputSize(ctx.renderer, &rw, &rh);
+        SDL_Rect vp = { sd(srng), sd(srng), rw, rh };
         SDL_RenderSetViewport(ctx.renderer, &vp);
     }
 

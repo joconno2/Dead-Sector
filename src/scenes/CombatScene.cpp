@@ -392,7 +392,8 @@ void CombatScene::resetGame(SceneContext& ctx) {
 
     // Apply hull-specific base extra lives and score multiplier
     if (m_avatar) {
-        m_avatar->extraLives = m_avatar->hullStats.extraLives;
+        m_avatar->extraLives = m_avatar->hullStats.extraLives
+                             + (ctx.mods ? ctx.mods->startingExtraLives() : 0);
         m_scoreMult = m_avatar->hullStats.scoreMult;
     }
 
