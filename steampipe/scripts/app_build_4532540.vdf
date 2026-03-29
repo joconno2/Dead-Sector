@@ -1,0 +1,13 @@
+"AppBuild"
+{
+    "AppID"         "4532540"
+    "Desc"          "Dead Sector build"
+    "ContentRoot"   "..\..\dist\"
+    "BuildOutput"   "..\output\"
+
+    "Depots"
+    {
+        "4532541"   "depot_build_4532541.vdf"
+        "4532542"   "depot_build_4532542.vdf"
+    }
+}

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(DeadSector VERSION 0.3.14 LANGUAGES CXX)
+project(DeadSector VERSION 0.3.15 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,6 +50,7 @@ endif()
 # ---------------------------------------------------------------------------
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+list(FILTER SOURCES EXCLUDE REGEX ".*/debug/.*")
 
 # WIN32 suppresses the console window on Windows release builds.
 # Include the .rc resource file so the executable gets the application icon.
@@ -124,7 +125,7 @@ if(WIN32)
     target_link_libraries(dead-sector PRIVATE
         SDL2::SDL2main
         SDL2::SDL2-static
-        SDL2_ttf::SDL2_ttf-static
+        SDL2_ttf::SDL2_ttf
         SDL2_mixer::SDL2_mixer
     )
     # Bake in libgcc/libstdc++ — no MinGW runtime DLLs required.
@@ -187,6 +188,9 @@ if(WIN32)
             $<TARGET_FILE_DIR:dead-sector>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/deps/windows/SDL2_mixer-2.8.1/x86_64-w64-mingw32/bin/SDL2_mixer.dll"
+            $<TARGET_FILE_DIR:dead-sector>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/deps/windows/SDL2_ttf-2.24.0/x86_64-w64-mingw32/bin/SDL2_ttf.dll"
             $<TARGET_FILE_DIR:dead-sector>
         COMMENT "Copying SDL2 runtime DLLs"
     )

@@ -49,7 +49,7 @@ private:
 
     // VORTEX: 4 heads (cardinal), each with their own fire timer
     std::array<bool,  4> m_heads      = {true, true, true, true};
-    std::array<float, 4> m_headFire   = {0.f, 0.9f, 1.8f, 2.7f};
+    std::array<float, 4> m_headFire   = {0.f, 0.25f, 0.5f, 0.75f};
 
     Vec2 shieldPos(int i) const;
     Vec2 headPos  (int i) const;

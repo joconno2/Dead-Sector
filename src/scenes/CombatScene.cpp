@@ -114,9 +114,8 @@ void CombatScene::onExit() {
 void CombatScene::setupCollisionCallback(SceneContext& ctx) {
     SceneManager*    scenes     = ctx.scenes;
     ModSystem*       mods       = ctx.mods;
-    bool*            invincible = &ctx.debugInvincible;
     const SaveData*  saveData   = ctx.saveData;
-    m_collision.setCallback([this, scenes, mods, invincible, saveData](const CollisionEvent& ev) {
+    m_collision.setCallback([this, scenes, mods, saveData](const CollisionEvent& ev) {
         if (ev.type == CollisionEvent::Type::ProjectileHitICE) {
             if (!ev.projectile->alive || !ev.iceEntity->alive) return;
 
@@ -212,7 +211,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
 
         } else if (ev.type == CollisionEvent::Type::AvatarHitICE) {
             if (!ev.avatar->alive) return;
-            if (ev.avatar->shielded || *invincible) { ev.iceEntity->alive = false; return; }
+            if (ev.avatar->shielded) { ev.iceEntity->alive = false; return; }
             if (ev.avatar->extraLives > 0) {
                 ev.iceEntity->alive = false;
                 ev.avatar->extraLives--;
@@ -255,7 +254,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
 
         } else if (ev.type == CollisionEvent::Type::EnemyProjectileHitAvatar) {
             if (!ev.avatar->alive || !ev.enemyProj->alive) return;
-            if (ev.avatar->shielded || *invincible) { ev.enemyProj->alive = false; return; }
+            if (ev.avatar->shielded) { ev.enemyProj->alive = false; return; }
             if (ev.avatar->extraLives > 0) {
                 ev.enemyProj->alive = false;
                 ev.avatar->extraLives--;
@@ -290,7 +289,7 @@ void CombatScene::setupCollisionCallback(SceneContext& ctx) {
             if (!ev.avatar->alive || !ev.projectile->alive) return;
             // DEADBOLT PROTOCOL upgrade grants immunity to own bullets
             bool immune = saveData && saveData->purchaseCount("DEADBOLT") > 0;
-            if (immune || ev.avatar->shielded || *invincible) {
+            if (immune || ev.avatar->shielded) {
                 ev.projectile->alive = false;
                 return;
             }
@@ -529,6 +528,24 @@ void CombatScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
             }
             return;
         default: break;
+        }
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        constexpr int MENU_W = 340, CHART_W = 280, GAP = 16, PANEL_H = 320;
+        int panelX = Constants::SCREEN_W / 2 - (MENU_W + GAP + CHART_W) / 2;
+        int panelY = Constants::SCREEN_H / 2 - PANEL_H / 2;
+        int ry = panelY + 54;
+        bool isVol[4] = { false, true, true, false };
+        for (int i = 0; i < PAUSE_ITEMS; ++i) {
+            int rowH = isVol[i] ? 46 : 26;
+            if (mx >= panelX + 8 && mx < panelX + MENU_W - 8 && my >= ry - 3 && my < ry - 3 + rowH) {
+                m_pauseCursor = i;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) confirm = true;
+                break;
+            }
+            ry += isVol[i] ? 62 : 44;
         }
     }
 

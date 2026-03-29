@@ -165,6 +165,21 @@ void MainMenuScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         else if (btn == SDL_CONTROLLER_BUTTON_DPAD_DOWN) move(+1);
         else if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START)
             selectCurrent(ctx);
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        constexpr int menuX = Constants::SCREEN_W / 2 - 80;
+        constexpr int menuY = Constants::SCREEN_H / 2 - 20;
+        constexpr int itemH = 42;
+        for (int i = 0; i < MENU_COUNT; ++i) {
+            int iy = menuY + i * itemH;
+            if (mx >= menuX - 40 && mx <= menuX + 220 && my >= iy && my < iy + itemH) {
+                m_cursor = (MenuItem)i;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) selectCurrent(ctx);
+                break;
+            }
+        }
     }
 }
 
@@ -377,11 +392,11 @@ void MainMenuScene::render(SceneContext& ctx) {
     // ---- Credits display ----
     if (ctx.saveData) {
         std::string credStr = "CREDITS: " + std::to_string(ctx.saveData->credits) + " CR";
-        ctx.hud->drawLabel(credStr, 20, Constants::SCREEN_H - 50, {0, 180, 130, 200});
+        ctx.hud->drawLabel(credStr, 20, Constants::SCREEN_H - 72, {0, 180, 130, 200});
 
         std::string runStr = "RUNS: " + std::to_string(ctx.saveData->totalRuns)
                            + "  |  BEST: " + std::to_string(ctx.saveData->highScore);
-        ctx.hud->drawLabel(runStr, 20, Constants::SCREEN_H - 28, {50, 100, 80, 160});
+        ctx.hud->drawLabel(runStr, 20, Constants::SCREEN_H - 50, {50, 100, 80, 160});
     }
 
     // Version / build info — version bottom-left, nav hint centred

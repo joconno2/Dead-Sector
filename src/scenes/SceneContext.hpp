@@ -35,9 +35,6 @@ struct SceneContext {
     int                 runKills   = 0;
     int                 runNodes   = 0;
 
-    // Achievement tracking (persists across nodes within a run)
-    uint16_t            programsUsedThisRun = 0; // bitmask: bit N = ProgramID(N) used
-
     // Multi-world run state
     int                 currentWorld = 0;  // 0=SECTOR ALPHA, 1=DEEP NET, 2=THE CORE
 
@@ -48,9 +45,6 @@ struct SceneContext {
     // Endless mode
     bool                endlessMode = false;
     int                 endlessWave = 0;
-
-    // Debug
-    bool                debugInvincible = false;
 
     // Effects applied by Event nodes; consumed by the next CombatScene or MapScene jackIn
     float nextNodeStartTrace = 0.f;  // extra starting trace for next combat node

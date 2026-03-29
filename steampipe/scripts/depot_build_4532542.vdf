@@ -1,0 +1,12 @@
+"DepotBuild"
+{
+    "DepotID"       "4532542"
+    "ContentRoot"   "dead-sector-linux-dev\"
+
+    "FileMapping"
+    {
+        "LocalPath" "*"
+        "DepotPath" "."
+        "Recursive" "1"
+    }
+}

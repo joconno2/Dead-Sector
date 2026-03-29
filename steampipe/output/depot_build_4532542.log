@@ -1,0 +1,10 @@
+[2026-03-17 04:03:43]: Starting build for depot 4532542, content path is "/home/jim/dead-sector/dist/dead-sector-linux-dev/", build flags 0x0
+[2026-03-17 04:03:43]: Building file listing for depot 4532542 ...
+[2026-03-17 04:03:43]: Found 13 files for mapping: /home/jim/dead-sector/dist/dead-sector-linux-dev * -> .
+[2026-03-17 04:03:43]: Found 13 files (35 MB) for depot 4532542
+[2026-03-17 04:03:43]: Building depot 4532542, baseline manifest 6908827681749482603 (13 files)
+[2026-03-17 04:03:43]: Found 40 new chunks ( 40 used previously ) for depot 4532542, took 0 minutes, 0 seconds
+[2026-03-17 04:03:43]: Changes to baseline manifest 6908827681749482603 :
+[2026-03-17 04:03:43]: Summary: 0 files added (0 bytes), 0 files changed (0 bytes), 0 files removed (0 bytes)
+[2026-03-17 04:03:44]: Uploading new manifest to depot_ingest.discovery.steamserver.net (handle 4890658599929897084, 2932 bytes).
+[2026-03-17 04:03:44]: Success! Previous manifestID 6908827681749482603 reused, no chunks uploaded.

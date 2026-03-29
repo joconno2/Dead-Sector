@@ -81,6 +81,21 @@ void ShipSelectScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         // Return to main menu
         ctx.scenes->replace(std::make_unique<MainMenuScene>());
     }
+
+    if (ev.type == SDL_MOUSEMOTION ||
+        (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        constexpr float SLOT_W = Constants::SCREEN_WF / NUM_HULLS;
+        constexpr float SHIP_Y = Constants::SCREEN_HF * 0.38f;
+        if (my >= (int)(SHIP_Y - 60) && my <= (int)(SHIP_Y + 90)) {
+            int idx = (int)(mx / SLOT_W);
+            if (idx >= 0 && idx < NUM_HULLS) {
+                m_cursor = idx;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) confirm(ctx);
+            }
+        }
+    }
 }
 
 void ShipSelectScene::update(float dt, SceneContext&) {

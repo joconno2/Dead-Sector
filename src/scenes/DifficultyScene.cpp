@@ -73,6 +73,22 @@ void DifficultyScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         else if (btn == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) move(+1);
         else if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START) confirm(ctx);
         else if (btn == SDL_CONTROLLER_BUTTON_B) ctx.scenes->replace(std::make_unique<WorldSelectScene>());
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        constexpr int CW = 320, CH = 260, CGAP = 28;
+        constexpr int CTOTAL = 3 * CW + 2 * CGAP;
+        int cx0 = (Constants::SCREEN_W - CTOTAL) / 2;
+        int cy0 = (Constants::SCREEN_H - CH) / 2 - 20;
+        for (int i = 0; i < 3; ++i) {
+            int cx = cx0 + i * (CW + CGAP);
+            if (mx >= cx && mx < cx + CW && my >= cy0 && my < cy0 + CH) {
+                m_cursor = i;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) confirm(ctx);
+                break;
+            }
+        }
     }
 }
 

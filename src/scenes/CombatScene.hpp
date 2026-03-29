@@ -160,7 +160,6 @@ private:
     bool   m_stealthKillUnlocked  = false;
     bool   m_empMultiUnlocked     = false;
     bool   m_speedrunUnlocked     = false;
-    bool   m_allProgramsUnlocked  = false;
     bool   m_endlessAch10Unlocked = false;
     bool   m_endlessAch25Unlocked = false;
 

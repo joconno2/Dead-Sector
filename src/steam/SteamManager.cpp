@@ -135,7 +135,7 @@ bool SteamManager::init() {
     m_impl = new Impl(&m_overlayActive);
 
     // Request current stats/achievements so we can query/update them
-    SteamUserStats()->RequestCurrentStats();
+    SteamUserStats()->RequestUserStats(SteamUser()->GetSteamID());
 
     return true;
 }
@@ -166,7 +166,7 @@ void SteamManager::checkCompletionist() {
         ACH_FINAL_BREACH,   ACH_GOLDEN_HULL,   ACH_HIGH_TRACE,
         ACH_KILL_MANTICORE, ACH_KILL_ARCHON,   ACH_KILL_VORTEX,
         ACH_CHAIN_KILL,     ACH_RICOCHET_KILL, ACH_STEALTH_KILL,  ACH_EMP_MULTI,
-        ACH_SPEEDRUN,       ACH_ALL_PROGRAMS,  ACH_ALL_HULLS,     ACH_ALL_GOLDEN,
+        ACH_SPEEDRUN,       ACH_ALL_HULLS,     ACH_ALL_GOLDEN,
         ACH_LEGENDARY_MOD,  ACH_ENDLESS_10,    ACH_ENDLESS_25,
     };
     for (auto ach : PREREQS) {

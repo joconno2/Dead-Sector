@@ -33,7 +33,7 @@ static void goToSummary(SceneContext& ctx, int score) {
 void GameOverScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
     if (m_time < 1.5f) return; // brief lockout
 
-    if (ev.type == SDL_KEYDOWN) {
+    if (ev.type == SDL_KEYDOWN || ev.type == SDL_MOUSEBUTTONDOWN) {
         goToSummary(ctx, m_score);
     } else if (ev.type == SDL_CONTROLLERBUTTONDOWN) {
         if (ev.cbutton.button == SDL_CONTROLLER_BUTTON_A
@@ -67,8 +67,9 @@ void GameOverScene::render(SceneContext& ctx) {
 
         if (m_time > 1.5f) {
             SDL_Color promptCol = { 220, 80, 60, 200 };
-            ctx.hud->drawLabel(">> PRESS ANY KEY <<",
-                               Constants::SCREEN_W / 2 - 100,
+            const std::string prompt = ">> PRESS ANY KEY <<";
+            ctx.hud->drawLabel(prompt,
+                               Constants::SCREEN_W / 2 - ctx.hud->measureText(prompt) / 2,
                                Constants::SCREEN_H / 2 + 40,
                                promptCol);
         }

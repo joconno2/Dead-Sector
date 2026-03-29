@@ -3,7 +3,7 @@
 
 // Manages the Trace % danger meter.
 // Trace rises passively over time and spikes on hits/alarms.
-// Fires a callback each time a new threshold (25/50/75/100) is first crossed.
+// Fires a callback each time a new threshold (20/40/60/80/100) is first crossed.
 class TraceSystem {
 public:
     using ThresholdCallback = std::function<void(int thresholdPct)>;

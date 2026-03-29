@@ -1,5 +1,5 @@
-credits=1395
-totalRuns=4
+credits=1795
+totalRuns=5
 totalKills=0
 highScore=44
 musicVolume=80
@@ -28,5 +28,6 @@ purchases=HULL_RAPTOR
 goldenHulls=
 normalScore=RUNNER:44
 normalScore=RUNNER:44
+normalScore=RUNNER:24
 normalScore=RUNNER:20
 normalScore=RUNNER:8

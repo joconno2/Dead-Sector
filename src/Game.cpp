@@ -209,24 +209,17 @@ void Game::run() {
                 std::cout << "Controller disconnected.\n";
             }
 
-            m_debug.handleEvent(ev, m_ctx);
-            if (!m_debug.isOpen())
-                m_scenes->handleEvent(ev, m_ctx);
+            m_scenes->handleEvent(ev, m_ctx);
         }
 
         accumulator += elapsed;
         while (accumulator >= FIXED_TICKS) {
             m_steam->tick();
-            m_debug.update(FIXED_DT, m_ctx);
-            if (!m_debug.isOpen() && !m_steam->isOverlayActive())
+            if (!m_steam->isOverlayActive())
                 m_scenes->update(FIXED_DT, m_ctx);
             accumulator -= FIXED_TICKS;
         }
 
         m_scenes->render(m_ctx);
-        if (m_debug.isOpen()) {
-            m_debug.render(m_renderer, m_hud->font());
-            SDL_RenderPresent(m_renderer);
-        }
     }
 }

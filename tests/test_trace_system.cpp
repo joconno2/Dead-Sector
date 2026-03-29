@@ -76,25 +76,29 @@ static void test_threshold_callbacks() {
     std::vector<int> fired;
     ts.setThresholdCallback([&](int pct) { fired.push_back(pct); });
 
-    ts.add(26.0f);   // crosses 25
+    ts.add(21.0f);   // crosses 20
     CHECK(fired.size() == 1);
-    CHECK(fired[0] == 25);
+    CHECK(fired[0] == 20);
 
-    ts.add(25.0f);   // crosses 50
+    ts.add(20.0f);   // crosses 40
     CHECK(fired.size() == 2);
-    CHECK(fired[1] == 50);
+    CHECK(fired[1] == 40);
 
-    ts.add(25.0f);   // crosses 75
+    ts.add(20.0f);   // crosses 60
     CHECK(fired.size() == 3);
-    CHECK(fired[2] == 75);
+    CHECK(fired[2] == 60);
 
-    ts.add(25.0f);   // crosses 100
+    ts.add(20.0f);   // crosses 80
     CHECK(fired.size() == 4);
-    CHECK(fired[3] == 100);
+    CHECK(fired[3] == 80);
+
+    ts.add(20.0f);   // crosses 100
+    CHECK(fired.size() == 5);
+    CHECK(fired[4] == 100);
 
     // Thresholds should not fire again once crossed
     ts.add(1.0f);
-    CHECK(fired.size() == 4);
+    CHECK(fired.size() == 5);
 }
 
 static void test_threshold_not_repeated_after_reset() {
@@ -102,25 +106,25 @@ static void test_threshold_not_repeated_after_reset() {
     std::vector<int> fired;
     ts.setThresholdCallback([&](int pct) { fired.push_back(pct); });
 
-    ts.add(30.0f);   // cross 25
+    ts.add(25.0f);   // crosses 20
     CHECK(fired.size() == 1);
 
     ts.reset();
     fired.clear();
 
     // After reset, thresholds should fire again
-    ts.add(30.0f);
+    ts.add(25.0f);
     CHECK(fired.size() == 1);
-    CHECK(fired[0] == 25);
+    CHECK(fired[0] == 20);
 }
 
 static void test_threshold_accessor() {
     TraceSystem ts(0.0f);
     CHECK(ts.threshold() == 0);
-    ts.add(30.0f);
-    CHECK(ts.threshold() == 25);
-    ts.add(30.0f);
-    CHECK(ts.threshold() == 50);
+    ts.add(25.0f);
+    CHECK(ts.threshold() == 20);
+    ts.add(25.0f);
+    CHECK(ts.threshold() == 40);
 }
 
 static void test_set_tick_rate() {

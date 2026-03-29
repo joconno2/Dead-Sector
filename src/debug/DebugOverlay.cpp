@@ -59,9 +59,9 @@ void DebugOverlay::handleEvent(SDL_Event& ev, SceneContext& ctx)
 
     if (ev.type == SDL_KEYDOWN) {
         switch (ev.key.keysym.scancode) {
-            case SDL_SCANCODE_UP:
+            case SDL_SCANCODE_UP:   case SDL_SCANCODE_W:
                 m_selected = (m_selected - 1 + NUM_ITEMS) % NUM_ITEMS; break;
-            case SDL_SCANCODE_DOWN:
+            case SDL_SCANCODE_DOWN: case SDL_SCANCODE_S:
                 m_selected = (m_selected + 1) % NUM_ITEMS; break;
             case SDL_SCANCODE_RETURN:
             case SDL_SCANCODE_SPACE:
@@ -154,7 +154,7 @@ void DebugOverlay::render(SDL_Renderer* renderer, TTF_Font* font) const
 
     // Footer hint
     SDL_Color hint{ 80, 40, 40, 255 };
-    drawText(renderer, font, "[A/ENTER] confirm  [B/ESC] close", X + 16, Y + H - 22, hint);
+    drawText(renderer, font, "[W/S] navigate  [ENTER] confirm  [ESC] close", X + 16, Y + H - 22, hint);
 }
 
 // ---------------------------------------------------------------------------

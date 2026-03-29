@@ -32,8 +32,10 @@ void CombatScene::update(float dt, SceneContext& ctx) {
         m_particles.update(slowDt);
         m_fragments.update(slowDt);
         if (m_shakeTimer > 0.f) m_shakeTimer -= dt;
-        if (m_deathTimer <= 0.f)
+        if (m_deathTimer <= 0.f) {
+            ctx.runKills += m_iceKilled;
             ctx.scenes->replace(std::make_unique<GameOverScene>(m_score));
+        }
         return;
     }
 
@@ -49,6 +51,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                 return;
             }
             m_complete = true;
+            ctx.runKills += m_iceKilled;
             ctx.runNodes++;
             if (ctx.currentWorld < 2) {
                 ctx.scenes->replace(std::make_unique<WorldCompleteScene>(
@@ -545,7 +548,7 @@ void CombatScene::update(float dt, SceneContext& ctx) {
                         }
                         if (!m_speedrunUnlocked) {
                             Uint32 elapsed = SDL_GetTicks() - m_combatStartTicks;
-                            if (elapsed <= 2 * 60 * 1000) {
+                            if (elapsed <= 10 * 1000) {
                                 m_steam->unlockAchievement(ACH_SPEEDRUN);
                                 m_speedrunUnlocked = true;
                             }
@@ -581,7 +584,7 @@ void CombatScene::updateMines(float dt, SceneContext& ctx) {
 
             if (m_avatar && m_avatar->alive &&
                 (m_avatar->pos - mine->pos).length() < R) {
-                if (!m_avatar->shielded && !ctx.debugInvincible) {
+                if (!m_avatar->shielded) {
                     if (m_avatar->extraLives > 0) {
                         m_avatar->extraLives--;
                         m_avatar->shieldTimer = 0.8f;
@@ -641,17 +644,6 @@ void CombatScene::handleRicochet(bool hasRicochetMod) {
 void CombatScene::activateProgram(int slot, SceneContext& ctx) {
     if (!ctx.programs || !ctx.programs->tryActivate(slot)) return;
     ProgramID pid = ctx.programs->slotID(slot);
-
-    // ACH_ALL_PROGRAMS: track each unique program type used this run
-    if (pid != ProgramID::NONE) {
-        ctx.programsUsedThisRun |= static_cast<uint16_t>(1u << static_cast<int>(pid));
-        static constexpr uint16_t ALL_15 = (1u << 15) - 1; // ProgramID 0-14
-        if ((ctx.programsUsedThisRun & ALL_15) == ALL_15 && m_steam && !m_allProgramsUnlocked) {
-            m_steam->unlockAchievement(ACH_ALL_PROGRAMS);
-            m_steam->checkCompletionist();
-            m_allProgramsUnlocked = true;
-        }
-    }
 
     switch (pid) {
     case ProgramID::FRAG: {
@@ -769,6 +761,7 @@ void CombatScene::checkObjective(SceneContext& ctx) {
         if (m_iceKilled > 0 && m_iceKilled >= m_lastUpgradeKills + 10) {
             m_lastUpgradeKills = m_iceKilled;
             m_complete = true;
+            ctx.runKills += m_iceKilled;
             ctx.endlessWave++;
             ctx.scenes->replace(std::make_unique<NodeCompleteScene>(
                 -1, m_score, m_iceKilled, 10, true, ctx.endlessWave, m_trace.trace()));
@@ -785,6 +778,7 @@ void CombatScene::checkObjective(SceneContext& ctx) {
     }
     if (done) {
         m_complete = true;
+        ctx.runKills += m_iceKilled;
         ctx.runNodes++;
         ctx.scenes->replace(std::make_unique<NodeCompleteScene>(
             m_config.nodeId, m_score, m_iceKilled, m_config.sweepTarget, false, 0));

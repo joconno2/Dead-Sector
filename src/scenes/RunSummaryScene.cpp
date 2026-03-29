@@ -90,7 +90,7 @@ void RunSummaryScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
     if (!m_canExit) return;
 
     bool pressed = false;
-    if (ev.type == SDL_KEYDOWN)
+    if (ev.type == SDL_KEYDOWN || ev.type == SDL_MOUSEBUTTONDOWN)
         pressed = true;
     else if (ev.type == SDL_CONTROLLERBUTTONDOWN)
         pressed = (ev.cbutton.button == SDL_CONTROLLER_BUTTON_A
@@ -127,7 +127,7 @@ void RunSummaryScene::render(SceneContext& ctx) {
     // Main panel
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     int panelW = 520;
-    int panelH = 340;
+    int panelH = 440;
     int panelX = Constants::SCREEN_W / 2 - panelW / 2;
     int panelY = Constants::SCREEN_H / 2 - panelH / 2;
 
@@ -205,28 +205,35 @@ void RunSummaryScene::render(SceneContext& ctx) {
                        panelX + 310, rowY, {0, 255, 180, 255});
     rowY += 30;
 
-    // Prompt
-    // Hull unlock notifications
+    // Hull unlock notifications (cap at 2 to avoid overflow)
+    int shownHulls = 0;
     for (const auto& hullName : m_newHullUnlocks) {
+        if (shownHulls >= 2) {
+            ctx.hud->drawLabel("  ...and more", panelX + 20, rowY, {80, 200, 120, 180});
+            rowY += 22;
+            break;
+        }
         float p = 0.5f + 0.5f * std::sin(m_time * 4.f);
         SDL_Color unlockCol = { (uint8_t)(80 + 80 * p), (uint8_t)(200 + 55 * p), (uint8_t)(120 + 60 * p), 255 };
         std::string msg = ">> HULL UNLOCKED: " + hullName + " <<";
         ctx.hud->drawLabel(msg, panelX + 20, rowY, unlockCol);
         rowY += 22;
+        ++shownHulls;
     }
 
+    // Prompt — anchored at fixed position so dynamic content above never pushes it out
     if (m_canExit) {
         float blink = 0.5f + 0.5f * std::sin(m_time * 3.f);
         SDL_Color promptCol = { 0, (uint8_t)(160 + 60 * blink), (uint8_t)(140 + 40 * blink), 220 };
-        ctx.hud->drawLabel(">> PRESS ANY KEY <<", panelX + 20, rowY, promptCol);
+        ctx.hud->drawLabel(">> PRESS ANY KEY <<", panelX + 20, panelY + panelH - 26, promptCol);
     }
 
-    // High score / save data info
+    // Persistent stats — drawn below the panel so they never collide with dynamic content
     if (ctx.saveData) {
         std::string hsStr = "HIGH SCORE: " + std::to_string(ctx.saveData->highScore);
         std::string totalCredStr = "TOTAL CREDITS: " + std::to_string(ctx.saveData->credits) + " CR";
-        ctx.hud->drawLabel(hsStr,        panelX + 20, panelY + panelH - 40, {100, 140, 120, 180});
-        ctx.hud->drawLabel(totalCredStr, panelX + 20, panelY + panelH - 20, {80,  180, 120, 200});
+        ctx.hud->drawLabel(hsStr,        panelX + 20, panelY + panelH + 14, {100, 140, 120, 180});
+        ctx.hud->drawLabel(totalCredStr, panelX + 20, panelY + panelH + 36, {80,  180, 120, 200});
     }
 
     SDL_RenderPresent(r);

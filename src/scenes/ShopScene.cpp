@@ -190,6 +190,22 @@ void ShopScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         else if (btn == SDL_CONTROLLER_BUTTON_A)         tryBuy(ctx);
         else if (btn == SDL_CONTROLLER_BUTTON_B || btn == SDL_CONTROLLER_BUTTON_START)
             ctx.scenes->replace(std::make_unique<MainMenuScene>());
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        constexpr int PANEL_Y = 50, LIST_X = 20, LIST_W = 490, ITEM_H = 44;
+        int listY = PANEL_Y + 2;
+        for (int i = 0; i < CATALOG_SIZE; ++i) {
+            if      (i == 0) listY += 26;
+            else if (i == 8) { listY += 6; listY += 26; }
+            if (mx >= LIST_X && mx < LIST_X + LIST_W && my >= listY && my < listY + ITEM_H - 2) {
+                m_cursor = i;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) tryBuy(ctx);
+                break;
+            }
+            listY += ITEM_H;
+        }
     }
 }
 

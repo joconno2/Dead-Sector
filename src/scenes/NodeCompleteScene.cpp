@@ -206,6 +206,21 @@ void NodeCompleteScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
             if (btn == SDL_CONTROLLER_BUTTON_DPAD_LEFT)  handleDir(-1);
             if (btn == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) handleDir(+1);
             if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START) pickUpgrade(ctx);
+        } else if (ev.type == SDL_MOUSEMOTION ||
+                   (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+            int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+            int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+            int n   = (int)m_offered.size();
+            int tot = n * CARD_W + (n - 1) * CARD_PAD;
+            int x0  = (Constants::SCREEN_W - tot) / 2;
+            for (int i = 0; i < n; ++i) {
+                int cx = x0 + i * (CARD_W + CARD_PAD);
+                if (mx >= cx && mx < cx + CARD_W && my >= CARD_Y0 && my < CARD_Y0 + CARD_H) {
+                    m_cursor = i;
+                    if (ev.type == SDL_MOUSEBUTTONDOWN) pickUpgrade(ctx);
+                    break;
+                }
+            }
         }
     }
 }

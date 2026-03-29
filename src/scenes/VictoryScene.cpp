@@ -68,7 +68,7 @@ void VictoryScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
     if (!m_canExit) return;
 
     bool pressed = false;
-    if (ev.type == SDL_KEYDOWN)
+    if (ev.type == SDL_KEYDOWN || ev.type == SDL_MOUSEBUTTONDOWN)
         pressed = true;
     else if (ev.type == SDL_CONTROLLERBUTTONDOWN)
         pressed = (ev.cbutton.button == SDL_CONTROLLER_BUTTON_A ||

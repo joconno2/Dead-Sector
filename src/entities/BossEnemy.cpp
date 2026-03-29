@@ -184,10 +184,10 @@ void BossEnemy::updateArchon(float dt, Vec2 playerPos, UpdateResult& out) {
 }
 
 void BossEnemy::updateVortex(float dt, Vec2 playerPos, UpdateResult& out) {
-    // Slow drift orbit (very tight)
+    // Slow drift orbit
     m_orbitAngle += dt * 0.28f;
     const Vec2 centre = { Constants::SCREEN_WF * 0.5f, Constants::SCREEN_HF * 0.5f };
-    pos = centre + Vec2{ std::cos(m_orbitAngle) * 75.f, std::sin(m_orbitAngle) * 60.f };
+    pos = centre + Vec2{ std::cos(m_orbitAngle) * 190.f, std::sin(m_orbitAngle) * 170.f };
 
     float headInterval = m_phase2 ? 1.8f : 3.0f;
     for (int i = 0; i < 4; ++i) {

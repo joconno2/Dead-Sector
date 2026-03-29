@@ -1,0 +1,14 @@
+"DepotBuild"
+{
+    "DepotID"       "4532541"
+    "ContentRoot"   "dead-sector-windows-dev\"
+
+    "FileMapping"
+    {
+        "LocalPath" "*"
+        "DepotPath" "."
+        "Recursive" "1"
+    }
+
+    "FileExclusion" "*.pdb"
+}

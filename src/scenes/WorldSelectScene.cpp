@@ -55,6 +55,18 @@ void WorldSelectScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         else if (btn == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) move(+1);
         else if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START) confirm(ctx);
         else if (btn == SDL_CONTROLLER_BUTTON_B) ctx.scenes->replace(std::make_unique<MainMenuScene>());
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        for (int w = 0; w < worldCount(); ++w) {
+            int cardX = CARD_X0 + w * (CARD_W + CARD_GAP);
+            if (mx >= cardX && mx < cardX + CARD_W && my >= CARD_Y && my < CARD_Y + CARD_H) {
+                m_cursor = w;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) confirm(ctx);
+                break;
+            }
+        }
     }
 }
 

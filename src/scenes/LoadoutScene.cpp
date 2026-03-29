@@ -93,6 +93,18 @@ void LoadoutScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
             if (ev.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) dir(+1);
             if (ev.cbutton.button == SDL_CONTROLLER_BUTTON_A
              || ev.cbutton.button == SDL_CONTROLLER_BUTTON_START) pickStartingMod(ctx);
+        } else if (ev.type == SDL_MOUSEMOTION ||
+                   (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+            int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+            int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+            for (int i = 0; i < MOD_OFFERS; ++i) {
+                int cx = UPG_X0 + i * (UPG_CARD_W + UPG_CARD_PAD);
+                if (mx >= cx && mx < cx + UPG_CARD_W && my >= UPG_Y0 && my < UPG_Y0 + UPG_CARD_H) {
+                    m_modCursor = i;
+                    if (ev.type == SDL_MOUSEBUTTONDOWN) pickStartingMod(ctx);
+                    break;
+                }
+            }
         }
         return;
     }
@@ -119,6 +131,22 @@ void LoadoutScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         else if (sc == SDL_SCANCODE_TAB)  confirm(ctx);
     } else if (ev.type == SDL_CONTROLLERBUTTONDOWN) {
         handleButton(ev.cbutton.button);
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        for (int row = 0; row < ROWS; ++row) {
+            for (int col = 0; col < COLS; ++col) {
+                int cx = GRID_X + col * (CARD_W + CARD_PAD);
+                int cy = GRID_Y + row * (CARD_H + CARD_PAD);
+                if (mx >= cx && mx < cx + CARD_W && my >= cy && my < cy + CARD_H) {
+                    m_cursor = row * COLS + col;
+                    if (ev.type == SDL_MOUSEBUTTONDOWN) toggleSelect(ctx);
+                    goto mouse_done;
+                }
+            }
+        }
+        mouse_done:;
     }
 
     if (dCol != 0 || dRow != 0) moveCursor(dCol, dRow);

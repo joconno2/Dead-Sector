@@ -176,6 +176,22 @@ void SettingsScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
         case SDL_CONTROLLER_BUTTON_START:      back    = true; break;
         default: break;
         }
+    } else if (ev.type == SDL_MOUSEMOTION ||
+               (ev.type == SDL_MOUSEBUTTONDOWN && ev.button.button == SDL_BUTTON_LEFT)) {
+        int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
+        int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
+        constexpr int panelW = 640;
+        int panelX = Constants::SCREEN_W / 2 - panelW / 2;
+        int panelY = Constants::SCREEN_H / 2 - 210;
+        int ry = panelY + 58;
+        for (int i = 0; i < (int)Row::COUNT; ++i) {
+            if (mx >= panelX + 8 && mx < panelX + panelW - 8 && my >= ry - 3 && my < ry + 23) {
+                m_cursor = (Row)i;
+                if (ev.type == SDL_MOUSEBUTTONDOWN) confirm = true;
+                break;
+            }
+            ry += 42;
+        }
     }
 
     int rows = (int)Row::COUNT;

@@ -35,10 +35,9 @@
 #define ACH_RICOCHET_KILL   "ACH_RICOCHET_KILL"    // Kill an ICE with a bounced projectile
 #define ACH_STEALTH_KILL    "ACH_STEALTH_KILL"     // Kill an ICE while STEALTH is active
 #define ACH_EMP_MULTI       "ACH_EMP_MULTI"        // Hit 5+ ICE with a single EMP
-#define ACH_SPEEDRUN        "ACH_SPEEDRUN"         // Defeat a boss in under 2 minutes
+#define ACH_SPEEDRUN        "ACH_SPEEDRUN"         // Kill a boss within 10s of spawning
 
 // --- Mastery ---
-#define ACH_ALL_PROGRAMS    "ACH_ALL_PROGRAMS"     // Use all 11 programs in a single run
 #define ACH_ALL_HULLS       "ACH_ALL_HULLS"        // Unlock all 5 ship hulls
 #define ACH_ALL_GOLDEN      "ACH_ALL_GOLDEN"       // Earn golden status on all 5 hulls
 #define ACH_LEGENDARY_MOD   "ACH_LEGENDARY_MOD"   // Equip a legendary rarity mod
@@ -48,7 +47,7 @@
 #define ACH_ENDLESS_25      "ACH_ENDLESS_25"       // Survive 25 waves in endless mode
 
 // --- Completionist ---
-#define ACH_FULL_BREACH     "ACH_FULL_BREACH"      // Unlock all 19 other achievements
+#define ACH_FULL_BREACH     "ACH_FULL_BREACH"      // Unlock all 18 other achievements
 
 class SteamManager {
 public:
