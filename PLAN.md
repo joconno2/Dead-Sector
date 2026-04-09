@@ -50,6 +50,9 @@ Target: Steam release (full, not EA) at **$4.99**
 - [ ] **Endless mode ramp** — difficulty curve too steep before wave 10
 - [ ] **Archon phase 2 shield regen** — may be too fast; needs balance QA pass
 
+### Fixed (pre-release) ✓
+- [x] **Upgrade cards overflow screen** — with EXTRA_OFFER (4-5 cards), total width exceeded 1280px; cards now scale down dynamically to fit
+
 ---
 
 ## Content

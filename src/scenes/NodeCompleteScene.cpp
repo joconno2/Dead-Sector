@@ -20,13 +20,28 @@
 // ---------------------------------------------------------------------------
 // Card layout
 // ---------------------------------------------------------------------------
-static constexpr int CARDS     = 3;
-static constexpr int CARD_W    = 260;
-static constexpr int CARD_H    = 230;
-static constexpr int CARD_PAD  = 20;
-static constexpr int CARD_TOT  = CARDS * CARD_W + (CARDS - 1) * CARD_PAD;
-static constexpr int CARD_X0   = (Constants::SCREEN_W - CARD_TOT) / 2;
-static constexpr int CARD_Y0   = (Constants::SCREEN_H - CARD_H) / 2 + 20;
+static constexpr int CARDS       = 3;
+static constexpr int CARD_W      = 260;
+static constexpr int CARD_H      = 230;
+static constexpr int CARD_PAD    = 20;
+static constexpr int CARD_MARGIN = 30;   // min margin on each side of screen
+static constexpr int CARD_Y0     = (Constants::SCREEN_H - CARD_H) / 2 + 20;
+
+// Returns card width and padding scaled to fit n cards on screen
+static void cardLayout(int n, int& outW, int& outPad, int& outX0) {
+    int maxW = Constants::SCREEN_W - 2 * CARD_MARGIN;
+    int tot  = n * CARD_W + (n - 1) * CARD_PAD;
+    if (tot <= maxW) {
+        outW   = CARD_W;
+        outPad = CARD_PAD;
+    } else {
+        // Shrink card width first, keep padding
+        outPad = CARD_PAD;
+        outW   = (maxW - (n - 1) * outPad) / n;
+    }
+    int finalTot = n * outW + (n - 1) * outPad;
+    outX0 = (Constants::SCREEN_W - finalTot) / 2;
+}
 
 // ---------------------------------------------------------------------------
 // Bonus pool for thematic credit bonuses
@@ -211,11 +226,11 @@ void NodeCompleteScene::handleEvent(SDL_Event& ev, SceneContext& ctx) {
             int mx = (ev.type == SDL_MOUSEMOTION) ? ev.motion.x : ev.button.x;
             int my = (ev.type == SDL_MOUSEMOTION) ? ev.motion.y : ev.button.y;
             int n   = (int)m_offered.size();
-            int tot = n * CARD_W + (n - 1) * CARD_PAD;
-            int x0  = (Constants::SCREEN_W - tot) / 2;
+            int cw, cp, x0;
+            cardLayout(n, cw, cp, x0);
             for (int i = 0; i < n; ++i) {
-                int cx = x0 + i * (CARD_W + CARD_PAD);
-                if (mx >= cx && mx < cx + CARD_W && my >= CARD_Y0 && my < CARD_Y0 + CARD_H) {
+                int cx = x0 + i * (cw + cp);
+                if (mx >= cx && mx < cx + cw && my >= CARD_Y0 && my < CARD_Y0 + CARD_H) {
                     m_cursor = i;
                     if (ev.type == SDL_MOUSEBUTTONDOWN) pickUpgrade(ctx);
                     break;
@@ -383,11 +398,11 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
     bool selected    = (idx == m_cursor);
     float pulse      = 0.5f + 0.5f * std::sin(m_pulse);
 
-    // Compute x0 dynamically so extra cards (EXTRA_OFFER) stay centred
+    // Compute layout dynamically so extra cards (EXTRA_OFFER) stay on screen
     int n   = (int)m_offered.size();
-    int tot = n * CARD_W + (n - 1) * CARD_PAD;
-    int x0  = (Constants::SCREEN_W - tot) / 2;
-    int cx  = x0 + idx * (CARD_W + CARD_PAD);
+    int cw, cp, x0;
+    cardLayout(n, cw, cp, x0);
+    int cx  = x0 + idx * (cw + cp);
     int cy  = CARD_Y0;
 
     const UpgradeCard& card = m_offered[idx];
@@ -399,7 +414,7 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
 
     // Background tinted by rarity
     SDL_SetRenderDrawColor(r, rr/14, rg/14, rb/14, selected ? 220 : 150);
-    SDL_Rect cardRect = { cx, cy, CARD_W, CARD_H };
+    SDL_Rect cardRect = { cx, cy, cw, CARD_H };
     SDL_RenderFillRect(r, &cardRect);
 
     // Rarity/kind border
@@ -408,8 +423,8 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
         SDL_SetRenderDrawColor(r, rr, rg, rb, alpha);
         SDL_RenderDrawRect(r, &cardRect);
         SDL_SetRenderDrawColor(r, rr, rg, rb, (uint8_t)(50*pulse));
-        SDL_Rect g1 = {cx-3,cy-3,CARD_W+6,CARD_H+6}; SDL_RenderDrawRect(r,&g1);
-        SDL_Rect g2 = {cx-2,cy-2,CARD_W+4,CARD_H+4}; SDL_RenderDrawRect(r,&g2);
+        SDL_Rect g1 = {cx-3,cy-3,cw+6,CARD_H+6}; SDL_RenderDrawRect(r,&g1);
+        SDL_Rect g2 = {cx-2,cy-2,cw+4,CARD_H+4}; SDL_RenderDrawRect(r,&g2);
     } else {
         SDL_SetRenderDrawColor(r, rr/2, rg/2, rb/2, 180);
         SDL_RenderDrawRect(r, &cardRect);
@@ -417,8 +432,8 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
 
     // Accent stripe (category/type color)
     SDL_SetRenderDrawColor(r, ar, ag, ab, selected ? 200 : 80);
-    SDL_RenderDrawLine(r, cx+4, cy+4, cx+CARD_W-4, cy+4);
-    SDL_RenderDrawLine(r, cx+4, cy+5, cx+CARD_W-4, cy+5);
+    SDL_RenderDrawLine(r, cx+4, cy+4, cx+cw-4, cy+4);
+    SDL_RenderDrawLine(r, cx+4, cy+5, cx+cw-4, cy+5);
 
     if (!ctx.hud) return;
 
@@ -437,7 +452,7 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
         std::string cdStr = "CD: " + std::to_string((int)def.cooldown) + "s";
         ctx.hud->drawLabel(typeLabel, cx+10, cy+14, typeCol);
         ctx.hud->drawLabel(def.name,  cx+10, cy+44, nameCol);
-        int lines = ctx.hud->drawWrapped(def.desc, cx+10, cy+74, CARD_W - 20, descCol, 20);
+        int lines = ctx.hud->drawWrapped(def.desc, cx+10, cy+74, cw - 20, descCol, 20);
         int cdY = std::min(cy + 74 + lines * 20 + 6, rarityY - 22);
         ctx.hud->drawLabel(cdStr, cx+10, cdY, descCol);
 
@@ -452,7 +467,7 @@ void NodeCompleteScene::drawCard(SceneContext& ctx, int idx) const {
         const ModDef& def = getModDef(card.modId);
         ctx.hud->drawLabel(typeLabel,              cx+10, cy+14,    typeCol);
         ctx.hud->drawLabel(def.name,               cx+10, cy+44,    nameCol);
-        ctx.hud->drawWrapped(def.desc,             cx+10, cy+74,    CARD_W - 20, descCol, 20);
+        ctx.hud->drawWrapped(def.desc,             cx+10, cy+74,    cw - 20, descCol, 20);
         ctx.hud->drawLabel(rarityName(def.rarity), cx+10, rarityY,  rarityCol);
     }
 
