@@ -4,6 +4,7 @@
 #include "SceneManager.hpp"
 #include "core/SaveSystem.hpp"
 #include "core/Constants.hpp"
+#include "steam/SteamManager.hpp"
 #include "renderer/VectorRenderer.hpp"
 #include "renderer/HUD.hpp"
 #include "world/NodeMap.hpp"
@@ -41,6 +42,14 @@ void RunSummaryScene::onEnter(SceneContext& ctx) {
         if (m_score > ctx.saveData->highScore)
             ctx.saveData->highScore = m_score;
         ctx.saveData->submitScore(ctx.endlessMode, m_score, ctx.endlessWave);
+
+        // Submit to Steam Leaderboards
+        if (ctx.steam && m_score > 0) {
+            if (ctx.endlessMode)
+                ctx.steam->submitEndlessScore(m_score, ctx.endlessWave);
+            else
+                ctx.steam->submitNormalScore(m_score);
+        }
 
         // Check hull unlock conditions
         static constexpr HullType HULL_ORDER[] = {

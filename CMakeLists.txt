@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(DeadSector VERSION 0.3.15 LANGUAGES CXX)
+project(DeadSector VERSION 0.3.16 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -122,6 +122,10 @@ endif()
 if(WIN32)
     # Statically link SDL2/SDL2_ttf so the .exe ships without those DLLs.
     # SDL2main must precede SDL2-static for correct symbol resolution.
+    # NOTE: this is the v0.3.14 recipe that Steam verified and that works on
+    # Windows. Do NOT rewrite this to dynamic SDL2 — the resulting exe crashes
+    # on launch despite looking correct in the import table. Empirically tested
+    # Apr 10: dynamic = crash, static = works.
     target_link_libraries(dead-sector PRIVATE
         SDL2::SDL2main
         SDL2::SDL2-static
@@ -191,6 +195,9 @@ if(WIN32)
             $<TARGET_FILE_DIR:dead-sector>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/deps/windows/SDL2_ttf-2.24.0/x86_64-w64-mingw32/bin/SDL2_ttf.dll"
+            $<TARGET_FILE_DIR:dead-sector>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "/usr/x86_64-w64-mingw32/bin/libwinpthread-1.dll"
             $<TARGET_FILE_DIR:dead-sector>
         COMMENT "Copying SDL2 runtime DLLs"
     )

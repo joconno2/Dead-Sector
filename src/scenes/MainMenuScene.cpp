@@ -1,4 +1,5 @@
 #include "MainMenuScene.hpp"
+#include <iostream>
 #include "audio/AudioSystem.hpp"
 #include "MapScene.hpp"
 #include "CombatScene.hpp"

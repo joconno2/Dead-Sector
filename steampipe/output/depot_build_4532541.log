@@ -1,10 +1,10 @@
-[2026-03-17 04:03:41]: Starting build for depot 4532541, content path is "/home/jim/dead-sector/dist/dead-sector-windows-dev/", build flags 0x0
-[2026-03-17 04:03:41]: Building file listing for depot 4532541 ...
-[2026-03-17 04:03:41]: Found 17 files for mapping: /home/jim/dead-sector/dist/dead-sector-windows-dev * -> .
-[2026-03-17 04:03:41]: Found 17 files (64 MB) for depot 4532541
-[2026-03-17 04:03:42]: Building depot 4532541, baseline manifest 2497561806640852696 (17 files)
-[2026-03-17 04:03:42]: Found 71 new chunks ( 71 used previously ) for depot 4532541, took 0 minutes, 0 seconds
-[2026-03-17 04:03:42]: Changes to baseline manifest 2497561806640852696 :
-[2026-03-17 04:03:42]: Summary: 0 files added (0 bytes), 0 files changed (0 bytes), 0 files removed (0 bytes)
-[2026-03-17 04:03:42]: Uploading new manifest to depot_ingest.discovery.steamserver.net (handle 11647585806697824, 4265 bytes).
-[2026-03-17 04:03:43]: Success! Previous manifestID 2497561806640852696 reused, no chunks uploaded.
+[2026-04-09 04:29:03]: Starting build for depot 4532541, content path is "/home/jim/dead-sector/dist/dead-sector-windows-dev/", build flags 0x0
+[2026-04-09 04:29:03]: Building file listing for depot 4532541 ...
+[2026-04-09 04:29:03]: Found 18 files for mapping: /home/jim/dead-sector/dist/dead-sector-windows-dev * -> .
+[2026-04-09 04:29:03]: Found 18 files (52 MB) for depot 4532541
+[2026-04-09 04:29:03]: Building depot 4532541, baseline manifest 3241537075836002759 (18 files)
+[2026-04-09 04:29:03]: Found 60 new chunks ( 60 used previously ) for depot 4532541, took 0 minutes, 0 seconds
+[2026-04-09 04:29:03]: Changes to baseline manifest 3241537075836002759 :
+[2026-04-09 04:29:03]: Summary: 0 files added (0 bytes), 0 files changed (0 bytes), 0 files removed (0 bytes)
+[2026-04-09 04:29:04]: Uploading new manifest to depot_ingest.discovery.steamserver.net (handle 13630862700588764364, 4015 bytes).
+[2026-04-09 04:29:04]: Success! Previous manifestID 3241537075836002759 reused, no chunks uploaded.

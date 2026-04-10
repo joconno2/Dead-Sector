@@ -95,6 +95,8 @@ jobs:
           cp build-windows/dead-sector.exe "$DIR/"
           cp build-windows/SDL2.dll        "$DIR/"
           cp build-windows/SDL2_mixer.dll  "$DIR/"
+          cp build-windows/SDL2_ttf.dll    "$DIR/"
+          cp build-windows/libwinpthread-1.dll "$DIR/"
           cp -r build-windows/assets       "$DIR/"
           [ -f build-windows/steam_api64.dll ] && cp build-windows/steam_api64.dll "$DIR/"
           cd dist && zip -r "dead-sector-windows-${TAG}.zip" "dead-sector-windows-${TAG}/"

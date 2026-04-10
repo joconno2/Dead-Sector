@@ -332,6 +332,18 @@ def build_library_hero():
     return apply_crt(to_image(c), chroma_shift=6, grain=0.012, vignette=0.70)
 
 
+def build_trailer_thumb():
+    """1920 × 1080 — trailer thumbnail with title + ships."""
+    W, H = 1920, 1080
+    c = blank(W, H)
+    draw_grid(c, spacing=120, alpha=22)
+    place_ship(c,  cx=420,  cy=780, angle_deg=-15, scale=8.0)
+    place_enemy(c, HUNTER,  cx=1560, cy=260, angle_deg=170, scale=7.0)
+    place_enemy(c, PHANTOM, cx=1620, cy=800, angle_deg=220, scale=5.5)
+    title_line(c, font_size=200, cy=440, letter_spacing=14, ul_half_w=740, tick=20)
+    return apply_crt(to_image(c), chroma_shift=4, grain=0.012)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -347,6 +359,7 @@ if __name__ == "__main__":
         ("library_capsule.png",  build_library_capsule),
         ("library_header.png",   build_library_header),
         ("library_hero.png",     build_library_hero),
+        ("trailer_thumb.png",    build_trailer_thumb),
     ]
     for fname, builder in assets:
         path = os.path.join(OUT, fname)
