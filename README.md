@@ -3,6 +3,7 @@
 A cyberpunk vector-arcade shooter inspired by 1980s arcade games and the aesthetics of William Gibson's *Neuromancer*.
 Built with C++17 and SDL2. Runs on Windows and Linux.
 
+Now available on Steam: https://store.steampowered.com/app/4532540/Dead_Sector/
 ---
 
 ## Gameplay
